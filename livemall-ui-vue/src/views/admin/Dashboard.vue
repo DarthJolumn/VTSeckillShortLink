@@ -341,6 +341,7 @@ function healthLabel(s) { return { ok: '正常', warn: '告警', down: '异常' 
 
 // —— 1s 节流刷新 ——
 let timer = null
+let onVisChange = null
 function refresh() {
   // KPI 波动
   kpis.value[0].value += Math.floor((Math.random() - 0.45) * 80)
@@ -396,9 +397,22 @@ function refresh() {
 onMounted(() => {
   tickClock()
   showToast('实时作战大屏已就绪 · 演示模式', 'info')
-  timer = setInterval(refresh, 1000)
+  // 3s 刷新（1s 太卡），页面不可见时暂停
+  timer = setInterval(refresh, 3000)
+  onVisChange = () => {
+    if (document.hidden) {
+      if (timer) { clearInterval(timer); timer = null }
+    } else if (!timer) {
+      refresh()
+      timer = setInterval(refresh, 3000)
+    }
+  }
+  document.addEventListener('visibilitychange', onVisChange)
 })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+  if (onVisChange) document.removeEventListener('visibilitychange', onVisChange)
+})
 </script>
 
 <style scoped>

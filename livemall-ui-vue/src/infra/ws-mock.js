@@ -50,7 +50,7 @@ export function createMockDriver({ roomId, send }) {
   }
 
   function start() {
-    // 弹幕：1.2 ~ 2.5s 一条
+    // 弹幕：2.5s 一条（原 1.6s 太密，6 轨道同飘 DOM 频繁创建销毁导致卡顿）
     loop(() => {
       const u = pick(USERS)
       send(WS_TYPE.BARRAGE_DOWN, {
@@ -60,7 +60,7 @@ export function createMockDriver({ roomId, send }) {
         content: pick(BARRAGE_POOL),
         timestamp: Date.now(),
       })
-    }, 1600)
+    }, 2500)
 
     // 礼物：5 ~ 10s 一次，带加分
     loop(() => {

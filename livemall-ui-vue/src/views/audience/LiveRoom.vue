@@ -93,7 +93,7 @@
           </div>
           <div class="barrage-list no-scrollbar" ref="listRef">
             <transition-group name="barrage-list">
-              <div v-for="b in live.barrage.slice(-60)" :key="b.timestamp + '-' + b.userId + '-' + b.content"
+              <div v-for="b in live.barrage.slice(-40)" :key="b.timestamp + '-' + b.userId + '-' + b.content"
                 class="barrage-list__item" :class="{ 'is-self': b.self, 'is-gift': !!b.giftName }">
                 <span class="barrage-list__user" :style="{ color: pickColor(b.userId) }">{{ b.username }}</span>
                 <template v-if="b.giftName">
@@ -246,7 +246,7 @@ watch(phase, (p) => {
       const elapsed = Date.now() - chargeStartAt
       chargePct.value = Math.min(100, (elapsed / total) * 100)
       if (chargePct.value >= 100 || phase.value !== 'pending') clearInterval(t)
-    }, 80)
+    }, 200)
   } else {
     chargePct.value = p === 'running' ? 100 : 0
   }
@@ -254,7 +254,7 @@ watch(phase, (p) => {
 
 // —— 排行榜：记录上一帧排名用于趋势 ——
 const prevRanks = reactive(new Map())
-watch(() => live.leaderboard.map((u) => u.id).join(','), () => {
+watch(() => live.leaderboard.length, () => {
   // 更新前先存上一帧
   nextTick(() => {
     const cur = new Map()
@@ -567,7 +567,7 @@ onBeforeUnmount(() => {
 /* composer */
 .composer { border-top: 1px solid var(--border-faint); padding-top: 10px; margin-top: 8px; }
 .composer__input { display: flex; gap: 8px; align-items: center; }
-.composer__input input { flex: 1; height: 38px; padding: 0 12px; border-radius: 8px; background: rgba(7,8,26,0.6); border: 1px solid var(--border-soft); color: var(--text-strong); outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+.composer__input input { flex: 1; height: 38px; padding: 0 12px; border-radius: 8px; background: transparent; border: 1px solid var(--border-soft); color: var(--text-strong); outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
 .composer__input input:focus { border-color: var(--neon-purple); box-shadow: 0 0 0 3px var(--neon-purple-soft); }
 .composer__input button[type="submit"] { padding: 0 16px; height: 38px; border-radius: 8px; background: linear-gradient(135deg, var(--neon-purple), #b07cff); color: #fff; font-family: var(--font-display); font-weight: 600; letter-spacing: 0.08em; transition: filter 0.2s, transform 0.16s; }
 .composer__input button[type="submit"]:not(:disabled):hover { filter: brightness(1.1); }

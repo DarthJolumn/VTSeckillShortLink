@@ -119,8 +119,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(7, 8, 26, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(7, 8, 26, 0.7);
   font-size: 14px;
   color: var(--text-strong);
   animation-name: barrage-flow;

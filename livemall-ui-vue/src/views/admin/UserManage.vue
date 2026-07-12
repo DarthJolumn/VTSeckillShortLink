@@ -360,7 +360,7 @@ onMounted(load)
 .filters__right input, .filters__right select {
   height: 30px;
   padding: 0 10px;
-  background: rgba(7,8,26,0.6);
+  background: transparent;
   border: 1px solid var(--border-faint);
   border-radius: var(--radius);
   color: var(--text);

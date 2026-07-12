@@ -472,7 +472,7 @@ onMounted(() => {
 .field input {
   height: 38px;
   padding: 0 12px;
-  background: rgba(7, 8, 26, 0.6);
+  background: transparent;
   border: 1px solid var(--border-faint);
   border-radius: var(--radius);
   color: var(--text);

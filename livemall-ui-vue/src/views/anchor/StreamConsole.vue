@@ -324,7 +324,7 @@ function startStatsTimer() {
   stats.totalView = 12
   stats.peak = 12
   statsTimer = setInterval(() => {
-    // 在线人数波动
+    // 在线人数波动（5s 更新一次，2s 太频繁）
     const delta = Math.floor((Math.random() - 0.45) * 8)
     stats.online = Math.max(1, stats.online + delta)
     stats.peak = Math.max(stats.peak, stats.online)
@@ -336,7 +336,7 @@ function startStatsTimer() {
       stats.gift += 1
       stats.revenue += g
     }
-  }, 2000)
+  }, 5000)
 }
 function stopStatsTimer() {
   if (statsTimer) clearInterval(statsTimer)

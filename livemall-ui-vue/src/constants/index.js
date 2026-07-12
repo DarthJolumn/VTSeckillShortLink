@@ -82,4 +82,5 @@ export const STORAGE_KEY = Object.freeze({
   ACCESS: 'lm_access',
   REFRESH: 'lm_refresh',
   USER: 'lm_user',
+  DEVICE: 'lm_device', // 设备 ID（UUID，持久化到 localStorage，对应后端 X-Device-Id Header）
 })

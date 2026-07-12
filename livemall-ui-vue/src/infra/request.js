@@ -5,7 +5,7 @@ import axios from 'axios'
 import { resolveError } from './error-code'
 import { genSignHeaders } from './sign'
 import {
-  tokens, getRefreshing, setRefreshing, clearRefreshing,
+  tokens, device, getRefreshing, setRefreshing, clearRefreshing,
 } from './auth'
 import { authApi } from '@/api/user'
 
@@ -22,6 +22,10 @@ const http = axios.create({
 
 // —— 请求拦截器 ——
 http.interceptors.request.use((config) => {
+  // 注入设备 ID（登录/注册必传，其余接口也统一带上，对应后端 X-Device-Id Header）
+  if (!config.headers['X-Device-Id']) {
+    config.headers['X-Device-Id'] = device.ensureId()
+  }
   // 注入 JWT（登录/注册是公开接口，不携带旧 token，否则网关验 JWT 失败会 403）
   const isPublicAuth = /\/auth\/(login|register)$/.test(config.url)
   if (!isPublicAuth) {

@@ -398,7 +398,7 @@ function onForceStop(a) {
 .filter__count { font-family: var(--font-num); font-size: 10px; padding: 0 5px; border-radius: 999px; background: rgba(7,8,26,0.6); }
 .filters input {
   width: 180px; height: 28px; padding: 0 10px;
-  background: rgba(7,8,26,0.6); border: 1px solid var(--border-faint);
+  background: transparent; border: 1px solid var(--border-faint);
   border-radius: var(--radius); color: var(--text); font-size: 12px;
 }
 .filters input:focus { outline: none; border-color: var(--neon-purple); }

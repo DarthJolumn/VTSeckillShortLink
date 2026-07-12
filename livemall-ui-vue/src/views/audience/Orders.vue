@@ -95,8 +95,8 @@ function refresh() {
 }
 onMounted(() => {
   refresh()
-  // 每 1s 刷新倒计时显示
-  timer = setInterval(() => { tick.value++; refresh() }, 1000)
+  // 每 1s 仅 tick 驱动倒计时重算（不重复读 store，store 数据由用户操作触发更新）
+  timer = setInterval(() => { tick.value++ }, 1000)
 })
 onBeforeUnmount(() => clearInterval(timer))
 

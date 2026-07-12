@@ -412,7 +412,7 @@ onUnmounted(() => {
 .gd-qty__input {
   width: 48px; height: 26px;
   text-align: center;
-  background: rgba(7, 8, 26, 0.6);
+  background: transparent;
   border: 1px solid var(--border-faint);
   border-radius: 6px;
   color: var(--text-strong);
