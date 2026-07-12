@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallcommon.util.IdempotencyService;
 import com.jolumn.livemallcommon.util.JwtUtil;
+import com.jolumn.livemalluser.dto.DeviceInfo;
 import com.jolumn.livemalluser.dto.LoginRequest;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.dto.RegisterRequest;
@@ -18,8 +19,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -104,6 +109,34 @@ public class UserService {
             idempotencyService.set(idempotencyKey, response, 5, TimeUnit.MINUTES);
         }
         return response;
+    }
+
+    public void logout(String refreshToken) {
+        String refreshKey = "refresh:" + refreshToken;
+        String value = redisTemplate.opsForValue().get(refreshKey);
+        if (value == null) {
+            return;
+        }
+        redisTemplate.delete(refreshKey);
+        String[] parts = value.split(":", 3);
+        if (parts.length < 3) {
+            log.error("退出登录时 token value 格式异常, refreshToken={}, value={}", refreshToken, value);
+            return;
+        }
+        String userId = parts[0];
+        String deviceId = parts[2];
+        redisTemplate.opsForSet().remove("device_sessions:" + userId, deviceId);
+    }
+
+    public List<DeviceInfo> getDevices(Long userId) {
+        Set<String> deviceIds = redisTemplate.opsForSet()
+                .members("device_sessions:" + userId);
+        if (deviceIds == null || deviceIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return deviceIds.stream()
+                .map(did -> DeviceInfo.of(did, false))
+                .collect(Collectors.toList());
     }
 
     private boolean existsByUsername(String username) {

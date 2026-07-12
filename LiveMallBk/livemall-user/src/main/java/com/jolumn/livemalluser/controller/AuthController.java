@@ -4,6 +4,7 @@ import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.util.IdempotencyService;
 import com.jolumn.livemalluser.dto.LoginRequest;
 import com.jolumn.livemalluser.dto.LoginResponse;
+import com.jolumn.livemalluser.dto.LogoutRequest;
 import com.jolumn.livemalluser.dto.RegisterRequest;
 import com.jolumn.livemalluser.service.UserService;
 import jakarta.validation.Valid;
@@ -39,5 +40,11 @@ public class AuthController {
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
         LoginResponse response = userService.login(request, deviceId, idempotencyKey);
         return Result.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public Result<Void> logout(@Valid @RequestBody LogoutRequest request) {
+        userService.logout(request.getRefreshToken());
+        return Result.ok();
     }
 }

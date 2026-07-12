@@ -131,4 +131,30 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400));
     }
+
+    @Test
+    void logout_ok() throws Exception {
+        doNothing().when(userService).logout(anyString());
+
+        mockMvc.perform(post("/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"rft_xxx"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(Result.SUCCESS_CODE));
+
+        verify(userService).logout("rft_xxx");
+    }
+
+    @Test
+    void logout_emptyRefreshToken_returns400() throws Exception {
+        mockMvc.perform(post("/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":""}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
 }

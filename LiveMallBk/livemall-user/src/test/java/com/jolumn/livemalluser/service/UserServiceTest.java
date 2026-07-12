@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallcommon.util.IdempotencyService;
 import com.jolumn.livemallcommon.util.JwtUtil;
+import com.jolumn.livemalluser.dto.DeviceInfo;
 import com.jolumn.livemalluser.dto.LoginRequest;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.dto.RegisterRequest;
@@ -21,6 +22,7 @@ import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
@@ -189,6 +191,59 @@ class UserServiceTest {
                 .isInstanceOf(BizException.class)
                 .extracting(e -> ((BizException) e).getCode())
                 .isEqualTo(1006);
+    }
+
+    @Test
+    void logout_success() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+        SetOperations<String, String> setOps = mock(SetOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(redisTemplate.opsForSet()).thenReturn(setOps);
+        when(valOps.get("refresh:rft_123")).thenReturn("1:1:device-abc");
+
+        userService.logout("rft_123");
+
+        verify(redisTemplate).delete("refresh:rft_123");
+        verify(setOps).remove("device_sessions:1", "device-abc");
+    }
+
+    @Test
+    void logout_tokenAlreadyExpired_noop() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.get("refresh:rft_123")).thenReturn(null);
+
+        userService.logout("rft_123");
+
+        verify(redisTemplate, never()).opsForSet();
+    }
+
+    @Test
+    void getDevices_returnsList() {
+        SetOperations<String, String> setOps = mock(SetOperations.class);
+
+        when(redisTemplate.opsForSet()).thenReturn(setOps);
+        when(setOps.members("device_sessions:1")).thenReturn(Set.of("d1", "d2"));
+
+        var devices = userService.getDevices(1L);
+
+        assertThat(devices).hasSize(2);
+        assertThat(devices).extracting(DeviceInfo::getDeviceId).containsExactlyInAnyOrder("d1", "d2");
+        assertThat(devices).extracting(DeviceInfo::isCurrent).containsOnly(false);
+    }
+
+    @Test
+    void getDevices_emptySet_returnsEmptyList() {
+        SetOperations<String, String> setOps = mock(SetOperations.class);
+
+        when(redisTemplate.opsForSet()).thenReturn(setOps);
+        when(setOps.members("device_sessions:1")).thenReturn(Set.of());
+
+        var devices = userService.getDevices(1L);
+
+        assertThat(devices).isEmpty();
     }
 
     private LoginRequest loginReq(String username, String password) {

@@ -69,7 +69,7 @@ export const useUserStore = defineStore('user', {
 
     async logout() {
       try {
-        if (this.refreshToken) await authApi.logout({ refreshToken: this.refreshToken })
+        if (this.refreshToken) await authApi.logout(this.refreshToken)
       } catch { /* ignore */ }
       this.reset()
     },

@@ -14,14 +14,8 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
-      // 注册接口直连用户服务 8081（绕过网关 8080 便于联调）
-      '/api/auth/register': {
-        target: 'http://localhost:8081',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, '')
-      },
-      // REST 经网关
-      '/api/auth/login': {
+      // 用户服务接口直连 8081（绕过网关 8080 便于联调）
+      '/api/auth': {
         target: 'http://localhost:8081',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, '')
