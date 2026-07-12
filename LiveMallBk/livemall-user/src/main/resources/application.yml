@@ -24,14 +24,15 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
 
-  jpa:
-    hibernate:
-      ddl-auto: none         # 由 sql/init.sql 维护 DDL，应用层不自动建表
-    show-sql: false
-    open-in-view: false      # ⚠️ 关闭 OSIV（VT 下避免 Controller 持有 DB 连接）
-    properties:
-      hibernate:
-        format_sql: true
+  # ====== MyBatis Plus ======
+  mybatis-plus:
+    mapper-locations: classpath*:/mapper/**/*.xml
+    global-config:
+      db-config:
+        id-type: auto
+    configuration:
+      map-underscore-to-camel-case: true
+      log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
   # ====== Redis ======
   data:
@@ -68,6 +69,10 @@ dubbo:
   consumer:
     check: false              # 启动不检查 provider，websocket 未就绪时 user 也能起
 
+# ====== JWT ======
+jwt:
+  secret: bGl2ZW1hbGwtZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTEyMzQ1Njc4OTA=
+
 # ====== workerId（Snowflake） ======
 worker:
   id: ${WORKER_ID:1}
@@ -86,4 +91,4 @@ management:
 logging:
   level:
     com.jolumn.livemalluser: DEBUG
-    org.hibernate.SQL: INFO
+    com.baomidou.mybatisplus: DEBUG
