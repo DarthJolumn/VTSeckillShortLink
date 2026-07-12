@@ -1,0 +1,74 @@
+# ===================================================================
+# livemall-gateway — WebFlux 网关服务
+# ===================================================================
+server:
+  port: 8080
+
+spring:
+  application:
+    name: livemall-gateway
+
+  # ====== 强制 WebFlux 模式（1.4 §1.1：Gateway 唯一响应式服务） ======
+  # livemall-common 引入了 spring-boot-starter-data-redis（非 reactive）会传递 spring-boot-starter-web，
+  # 必须强制 reactive，否则报错 "Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway"
+  main:
+    web-application-type: reactive
+
+  # ====== Redis（Reactive — 非阻塞 Nonce 检查） ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+
+  # ====== Nacos 服务发现 ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:   # 公共命名空间
+        group: DEFAULT_GROUP
+
+    # ====== Gateway 路由 ======
+    gateway:
+      routes:
+        # ---------- 用户服务 ----------
+        - id: user-service
+          uri: lb://livemall-user
+          predicates:
+            - Path=/auth/**, /user/**
+
+        # ---------- 秒杀服务 ----------
+        - id: seckill-service
+          uri: lb://livemall-seckill
+          predicates:
+            - Path=/seckill/**
+
+        # ---------- 排行榜服务 ----------
+        - id: leaderboard-service
+          uri: lb://livemall-leaderboard
+          predicates:
+            - Path=/leaderboard/**
+
+        # ---------- WebSocket 路由 ----------
+        - id: websocket-service
+          uri: lb:ws://livemall-websocket
+          predicates:
+            - Path=/ws/**
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1   # 10% 采样，高频不炸 Zipkin
+
+# ====== 日志 ======
+logging:
+  level:
+    com.jolumn.livemallgateway: DEBUG
+    org.springframework.cloud.gateway: INFO

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.7</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.jolumn</groupId>
+    <artifactId>LiveMallBk</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>LiveMallBk</name>
+    <description>LiveMall — 直播电商秒杀系统父工程</description>
+
+    <properties>
+        <java.version>21</java.version>
+
+        <!-- ====== 核心框架 ====== -->
+        <spring-boot.version>3.2.7</spring-boot.version>
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
+
+        <!-- ====== RPC ====== -->
+        <dubbo.version>3.3.0</dubbo.version>
+
+        <!-- ====== 消息 ====== -->
+        <kafka.version>3.6.1</kafka.version>
+
+        <!-- ====== 缓存 ====== -->
+        <caffeine.version>3.1.8</caffeine.version>
+
+        <!-- ====== 密码 ====== -->
+        <jbcrypt.version>0.4</jbcrypt.version>
+
+        <!-- ====== 工具 ====== -->
+        <hutool.version>5.8.28</hutool.version>
+
+        <!-- ====== 可观测 ====== -->
+        <micrometer-tracing.version>1.2.5</micrometer-tracing.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Spring Cloud BOM -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud Alibaba BOM (Nacos + Sentinel) -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Dubbo -->
+            <dependency>
+                <groupId>org.apache.dubbo</groupId>
+                <artifactId>dubbo-spring-boot-starter</artifactId>
+                <version>${dubbo.version}</version>
+            </dependency>
+
+            <!-- Caffeine -->
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
+            </dependency>
+
+            <!-- BCrypt -->
+            <dependency>
+                <groupId>org.mindrot</groupId>
+                <artifactId>jbcrypt</artifactId>
+                <version>${jbcrypt.version}</version>
+            </dependency>
+
+            <!-- Hutool -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ====== 子模块 ====== -->
+    <modules>
+        <module>livemall-common</module>
+        <module>livemall-user</module>
+        <module>livemall-seckill</module>
+        <module>livemall-websocket</module>
+        <module>livemall-leaderboard</module>
+        <module>livemall-gateway</module>
+    </modules>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+
+                <!--可编译预览API-ScopedValue-->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <compilerArgs>
+                            <arg>--enable-preview</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+
+                <!--可测试预览API-ScopedValue-->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>--enable-preview</argLine>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip><!-- 父工程不打 jar -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

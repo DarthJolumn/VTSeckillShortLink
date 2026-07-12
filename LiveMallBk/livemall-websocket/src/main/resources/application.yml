@@ -1,0 +1,111 @@
+# ===================================================================
+# livemall-websocket — WebSocket 长连接服务（Spring MVC + VT + JSR-356）
+# ===================================================================
+server:
+  port: 8083
+
+spring:
+  application:
+    name: livemall-websocket
+
+  # ====== VT 开启（1.4 §1.2） ======
+  # WS @OnOpen/@OnMessage/@OnClose 由 WebSocketConfig 显式注入 VT Executor，跑在 VT 上
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL（t_live_room/t_barrage/t_gift_log） ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  # ====== Redis ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 4
+
+  # ====== Kafka（消费秒杀订单结果推送） ======
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:9092}
+    consumer:
+      group-id: livemall-ws
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+
+  # ====== 优雅停机（关播时广播 ROOM_CLOSED 后等待 5s） ======
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# ====== Dubbo（提供 WsPushService） ======
+dubbo:
+  application:
+    name: livemall-websocket
+  protocol:
+    name: dubbo
+    port: 20883
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+  scan:
+    base-packages: com.jolumn.livemallwebsocket.push
+  provider:
+    loadbalance: roundrobin
+
+# ====== 节点 ID（ws:route 跨节点路由标识） ======
+ws:
+  node-id: ${HOSTNAME:node-1}
+  # 心跳配置
+  heartbeat-interval-ms: 30000       # 客户端 PING 间隔
+  heartbeat-timeout-ms: 60000        # 服务端超时阈值（2 倍间隔）
+  heartbeat-scan-ms: 10000           # 服务端扫描间隔
+  # 在线人数落库间隔
+  online-sync-ms: 30000
+  # 关播异步清理等待
+  room-close-wait-ms: 5000
+  # 离线消息配置
+  offline-ttl-min: 5
+  offline-max-size: 100
+  # RoomManager 容量上限
+  max-sessions: 200000
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.livemallwebsocket: DEBUG
+    org.hibernate.SQL: INFO

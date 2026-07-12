@@ -1,0 +1,44 @@
+# Tools (not tracked)
+.opencode/
+.claude/
+.codebuddy/
+.idea/
+*.iml
+.mvn/
+
+# Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.project
+.classpath
+.settings/
+.factorypath
+.springBeans
+.sts4-cache
+.vscode/
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker/volumes/
+
+# Build
+build/
+/nbbuild/
+/dist/
+/nbdist/
+
+# node_modules
+/livemall-ui-vue/node_modules

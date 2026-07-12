@@ -1,0 +1,100 @@
+# ===================================================================
+# livemall-leaderboard — 排行榜服务（Spring MVC + VT + Redis ZSet）
+# ===================================================================
+server:
+  port: 8084
+
+spring:
+  application:
+    name: livemall-leaderboard
+
+  # ====== VT 开启（1.4 §1.2） ======
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  # ====== Redis（ZSet 主存储） ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+          min-idle: 4
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+
+  # ====== 优雅停机 ======
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# ====== Dubbo（提供 LeaderboardDubboApi） ======
+dubbo:
+  application:
+    name: livemall-leaderboard
+  protocol:
+    name: dubbo
+    port: 20884
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+  scan:
+    base-packages: com.jolumn.livemallleaderboard.service
+  provider:
+    loadbalance: roundrobin
+
+# ====== 排行榜配置 ======
+leaderboard:
+  # ZSet key 前缀：leaderboard:{activityId}
+  key-prefix: "leaderboard:"
+  # 活动结束后 ZSet TTL（7 天）
+  activity-end-ttl-days: 7
+  # TopN 本地缓存配置
+  topn-cache:
+    ttl-seconds: 1
+    max-size: 1000
+  # 定时快照配置
+  snapshot:
+    cron: "0 */5 * * * ?"     # 每 5 分钟
+    top-n: 100                 # 取 Top 100
+    batch-size: 500            # 批量 INSERT 大小
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.livemallleaderboard: DEBUG
+    org.hibernate.SQL: INFO

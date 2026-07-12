@@ -1,0 +1,89 @@
+# ===================================================================
+# livemall-user — 用户服务（Spring MVC + VT）
+# ===================================================================
+server:
+  port: 8081
+
+spring:
+  application:
+    name: livemall-user
+
+  # ====== VT 开启（1.4 §1.2 约束） ======
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: none         # 由 sql/init.sql 维护 DDL，应用层不自动建表
+    show-sql: false
+    open-in-view: false      # ⚠️ 关闭 OSIV（VT 下避免 Controller 持有 DB 连接）
+    properties:
+      hibernate:
+        format_sql: true
+
+  # ====== Redis ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+
+# ====== Dubbo ======
+dubbo:
+  application:
+    name: livemall-user
+  protocol:
+    name: dubbo
+    port: 20881
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+  scan:
+    base-packages: com.jolumn.livemalluser.service
+  consumer:
+    check: false              # 启动不检查 provider，websocket 未就绪时 user 也能起
+
+# ====== workerId（Snowflake） ======
+worker:
+  id: ${WORKER_ID:1}
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+# ====== 日志 ======
+logging:
+  level:
+    com.jolumn.livemalluser: DEBUG
+    org.hibernate.SQL: INFO

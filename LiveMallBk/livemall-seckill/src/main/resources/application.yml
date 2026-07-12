@@ -1,0 +1,140 @@
+# ===================================================================
+# livemall-seckill — 秒杀服务（Spring MVC + VT + Redis Lua + Kafka）
+# ===================================================================
+server:
+  port: 8082
+
+spring:
+  application:
+    name: livemall-seckill
+
+  # ====== VT 开启（1.4 §1.2） ======
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL（t_seckill_activity / t_seckill_order） ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  # ====== Redis（Lua 库存扣减） ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 64
+          max-idle: 16
+          min-idle: 8
+
+  # ====== Kafka（异步下单） ======
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 3
+      batch-size: 16384
+      buffer-memory: 33554432
+      acks: all
+    consumer:
+      group-id: livemall-seckill
+      auto-offset-reset: latest
+      enable-auto-commit: false  # MANUAL ACK
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: manual  # INSERT 成功后 ack.acknowledge()
+      concurrency: 4    # 4 个消费线程
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+    sentinel:
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
+      datasource:
+        ds1:
+          nacos:
+            server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+            dataId: livemall-seckill-rules.json
+            groupId: DEFAULT_GROUP
+            rule-type: flow
+
+  # ====== 优雅停机 ======
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# ====== Dubbo（消费 WsPushService） ======
+dubbo:
+  application:
+    name: livemall-seckill
+  protocol:
+    name: dubbo
+    port: 20882
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+  consumer:
+    check: false  # WsPushService provider 可能未启动时不阻塞
+    timeout: 3000
+
+# ====== 秒杀业务配置 ======
+seckill:
+  # 库存分片数（基线 4 片：10w QPS / 7w ≈ 2 片，留余量取 4）
+  shard-count: 4
+  # 防重 ordered key TTL（24h）
+  ordered-ttl-seconds: 86400
+  # 创建活动幂等 key TTL（5min）
+  idempotency-ttl-seconds: 300
+  # 取消/退款防重锁 TTL（10s）
+  cancel-lock-ttl-seconds: 10
+  # 超时订单扫描间隔（15s）
+  timeout-scan-ms: 15000
+  # 订单超时阈值（15min）
+  order-timeout-minutes: 15
+  # 超时扫描每次批量数（500）
+  timeout-scan-batch: 500
+  # Caffeine 活动缓存配置
+  activity-cache:
+    ttl-seconds: 5
+    max-size: 1000
+
+# ====== Kafka topic ======
+kafka:
+  topic:
+    seckill-order: seckill-order
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.livemallseckill: DEBUG
+    org.hibernate.SQL: INFO

@@ -1,0 +1,8 @@
+# docker-compose local dev overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+# This file is gitignored — each developer keeps their own
+
+# Example: use host network mode on Linux
+# services:
+#   mysql:
+#     network_mode: host

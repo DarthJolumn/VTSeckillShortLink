@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.jolumn</groupId>
+        <artifactId>LiveMallBk</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>livemall-gateway</artifactId>
+    <packaging>jar</packaging>
+    <name>livemall-gateway</name>
+    <description>网关服务 — Spring Cloud Gateway / 签名验签 / JWT鉴权 / Sentinel限流 / CORS</description>
+
+    <dependencies>
+        <!-- ====== 内部模块 ====== -->
+        <dependency>
+            <groupId>com.jolumn</groupId>
+            <artifactId>livemall-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- ====== Gateway（WebFlux，不引入 spring-boot-starter-web） ====== -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <!-- 排除 spring-boot-starter-web 的传递依赖，避免冲突 -->
+
+        </dependency>
+
+        <!-- ====== Nacos ====== -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- ====== Redis —— ReactiveRedisTemplate 非阻塞 ====== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- ====== Sentinel Gateway 适配 ====== -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
+        </dependency>
+
+        <!-- ====== Sentinel Datasource —— SCG 自动配置依赖 Converter 接口 ====== -->
+        <!-- spring-cloud-alibaba-sentinel-gateway 未传递依赖 sentinel-datasource-extension，
+             而 SentinelSCGAutoConfiguration.sentinelGatewayBlockExceptionHandler
+             内省 SentinelJsonConfiguration 时需要 com.alibaba.csp.sentinel.datasource.Converter。
+             不引入会导致启动时 ClassNotFoundException（见 error.md 行 87）。
+             版本与 spring-cloud-alibaba 2023.0.1.2 内置的 Sentinel 1.8.8 对齐。 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-extension</artifactId>
+            <version>1.8.8</version>
+        </dependency>
+
+        <!-- ====== 可观测 ====== -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-brave</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ====== 测试 ====== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
