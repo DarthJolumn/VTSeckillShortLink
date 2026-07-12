@@ -20,14 +20,6 @@
         <span class="overview__num"><NumberFlip :value="currentDevice ? 1 : 0" /></span>
         <span class="overview__label">本机</span>
       </div>
-      <div class="overview__card glass">
-        <span class="overview__num"><NumberFlip :value="historyCount" /></span>
-        <span class="overview__label">30 天登录次数</span>
-      </div>
-      <div class="overview__card glass">
-        <span class="overview__num"><NumberFlip :value="historyList.length" /></span>
-        <span class="overview__label">历史设备</span>
-      </div>
     </div>
 
     <!-- 当前在线设备 -->
@@ -78,40 +70,6 @@
       </ul>
     </section>
 
-    <!-- 登录历史 -->
-    <section class="block">
-      <div class="block__head">
-        <h2>登录历史</h2>
-        <span class="block__hint">最近 {{ historyList.length }} 条</span>
-      </div>
-      <div class="history glass">
-        <table>
-          <thead>
-            <tr>
-              <th>时间</th>
-              <th>设备</th>
-              <th>IP</th>
-              <th>地区</th>
-              <th>结果</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(h, i) in historyList" :key="i">
-              <td class="num">{{ formatTime(h.at) }}</td>
-              <td>{{ h.device }}</td>
-              <td class="num">{{ h.ip }}</td>
-              <td>{{ h.location }}</td>
-              <td>
-                <span class="result" :class="h.ok ? 'result--ok' : 'result--fail'">
-                  {{ h.ok ? '✓ 成功' : '× 失败' }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
     <!-- 安全提示 -->
     <section class="tips glass">
       <div class="tips__icon">🛡️</div>
@@ -138,10 +96,8 @@ const userStore = useUserStore()
 const loading = ref(false)
 const kicking = ref(null)
 const devices = ref([])
-const historyList = ref([])
 
 const currentDevice = computed(() => devices.value.find(d => d.isCurrent))
-const historyCount = computed(() => historyList.value.length + 12)
 
 // —— 加载 ——
 async function load() {
@@ -155,7 +111,6 @@ async function load() {
     showToast('后端未就绪，已加载演示数据', 'info')
   } finally {
     loading.value = false
-    historyList.value = mockHistory()
   }
 }
 
@@ -176,16 +131,10 @@ async function onKick(d) {
   try {
     await userApi.kickDevice(d.deviceId)
     devices.value = devices.value.filter(x => x.deviceId !== d.deviceId)
-    historyList.value.unshift({
-      at: Date.now(), device: d.deviceName, ip: d.ip, location: d.location, ok: true,
-    })
     showToast(`已下线 ${d.deviceName}`, 'success')
   } catch (e) {
     // mock 模式直接移除
     devices.value = devices.value.filter(x => x.deviceId !== d.deviceId)
-    historyList.value.unshift({
-      at: Date.now(), device: d.deviceName, ip: d.ip, location: d.location, ok: true,
-    })
     showToast(`已下线 ${d.deviceName}（演示）`, 'success')
   } finally {
     kicking.value = null
@@ -228,24 +177,6 @@ function mockDevices() {
     { deviceId: 'd-3', deviceName: 'Chrome · Android 14', ip: '223.5.5.5', location: '深圳', lastLoginAt: now - 26 * 3600 * 1000, expiresAt: now - 2 * 3600 * 1000 },
   ]
 }
-function mockHistory() {
-  const now = Date.now()
-  const items = []
-  const devices = ['Chrome 131 · Windows', 'Safari · iPhone 15', 'Edge · Windows', 'Chrome · Android 14']
-  const ips = ['192.168.1.10', '117.136.12.34', '114.114.114.114', '223.5.5.5', '8.8.8.8']
-  const locs = ['上海', '杭州', '北京', '深圳', '广州']
-  for (let i = 0; i < 18; i++) {
-    items.push({
-      at: now - i * 7 * 3600 * 1000 - Math.random() * 3600 * 1000,
-      device: devices[i % devices.length],
-      ip: ips[i % ips.length],
-      location: locs[i % locs.length],
-      ok: i % 7 !== 0, // 偶尔失败
-    })
-  }
-  return items
-}
-
 onMounted(load)
 </script>
 
@@ -280,10 +211,9 @@ onMounted(load)
 /* —— 概览 —— */
 .overview {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
-@media (max-width: 768px) { .overview { grid-template-columns: repeat(2, 1fr); } }
 .overview__card {
   padding: 18px;
   border-radius: var(--radius);
@@ -401,34 +331,6 @@ onMounted(load)
 .kick-btn:hover:not(:disabled) { background: rgba(255,84,112,0.16); transform: scale(1.04); }
 .kick-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .device__me-label { font-size: 12px; color: var(--neon-cyan); }
-
-/* —— 历史 —— */
-.history {
-  border-radius: var(--radius);
-  border: 1px solid var(--border-faint);
-  background: var(--bg-card);
-  overflow-x: auto;
-}
-.history table { width: 100%; border-collapse: collapse; min-width: 540px; }
-.history th, .history td {
-  padding: 10px 14px;
-  text-align: left;
-  font-size: 13px;
-  border-bottom: 1px solid var(--border-faint);
-}
-.history th {
-  color: var(--text-muted);
-  font-weight: 500;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  background: rgba(7,8,26,0.4);
-}
-.history tbody tr:last-child td { border-bottom: none; }
-.history tbody tr:hover { background: rgba(138,99,255,0.04); }
-.num { font-family: var(--font-num); color: var(--text); }
-.result { padding: 2px 8px; border-radius: 999px; font-size: 11px; }
-.result--ok { background: rgba(82,229,164,0.14); color: var(--success); }
-.result--fail { background: rgba(255,84,112,0.14); color: var(--danger); }
 
 /* —— 安全提示 —— */
 .tips {
