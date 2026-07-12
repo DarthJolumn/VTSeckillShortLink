@@ -3,6 +3,7 @@ package com.jolumn.livemalluser.controller;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.exception.GlobalExceptionHandler;
 import com.jolumn.livemallcommon.util.IdempotencyService;
+import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -86,5 +89,46 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(""))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void login_ok() throws Exception {
+        LoginResponse resp = LoginResponse.of("jwt.xxx", "rft_xxx");
+
+        when(userService.login(any(), eq("device-1"), isNull())).thenReturn(resp);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Device-Id", "device-1")
+                        .content("""
+                                {"username":"zhangsan","password":"Test1234"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(Result.SUCCESS_CODE))
+                .andExpect(jsonPath("$.data.accessToken").value("jwt.xxx"))
+                .andExpect(jsonPath("$.data.refreshToken").value("rft_xxx"))
+                .andExpect(jsonPath("$.data.expiresIn").value(900));
+    }
+
+    @Test
+    void login_missingDeviceId_returns400() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"zhangsan","password":"Test1234"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void login_emptyUsername_returns400() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Device-Id", "device-1")
+                        .content("""
+                                {"username":"","password":"Test1234"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

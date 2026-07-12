@@ -2,6 +2,8 @@ package com.jolumn.livemalluser.controller;
 
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.util.IdempotencyService;
+import com.jolumn.livemalluser.dto.LoginRequest;
+import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.dto.RegisterRequest;
 import com.jolumn.livemalluser.service.UserService;
 import jakarta.validation.Valid;
@@ -16,8 +18,6 @@ public class AuthController {
     private final UserService userService;
     private final IdempotencyService idempotencyService;
 
-
-    // TODO 第三方注册
     @PostMapping("/register")
     public Result<Void> register(
             @Valid @RequestBody RegisterRequest request,
@@ -30,5 +30,14 @@ public class AuthController {
         String hashedPwd = userService.preRegister(request.getPassword());
         userService.register(request, hashedPwd);
         return Result.ok();
+    }
+
+    @PostMapping("/login")
+    public Result<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            @RequestHeader("X-Device-Id") String deviceId,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey) {
+        LoginResponse response = userService.login(request, deviceId, idempotencyKey);
+        return Result.ok(response);
     }
 }
