@@ -23,9 +23,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemalluser",
-        "com.jolumn.livemallcommon.util",
-        "com.jolumn.livemallcommon.exception",
-        "com.jolumn.livemallcommon.dto"
+        "com.jolumn.livemallcommon"
 })
 @EnableDubbo
 public class LivemallUserApplication {

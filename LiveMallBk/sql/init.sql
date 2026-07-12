@@ -21,6 +21,7 @@ CREATE TABLE t_user (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
     username    VARCHAR(50)  NOT NULL UNIQUE,
     password    VARCHAR(255) NOT NULL,                          -- BCrypt hash
+    nickname    VARCHAR(50),                                   -- 昵称
     phone       VARCHAR(20),                                   -- 可选
     avatar      VARCHAR(255),
     role        TINYINT DEFAULT 1 COMMENT '1:观众 2:主播 3:管理员',
