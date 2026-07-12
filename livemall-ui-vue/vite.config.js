@@ -20,11 +20,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, '')
       },
-      '/api/user': {
-        target: 'http://localhost:8081',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, '')
-      },
       // WebSocket 直连（开发期也可走代理）
       '/ws': {
         target: 'ws://localhost:8083',

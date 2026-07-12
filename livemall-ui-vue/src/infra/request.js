@@ -33,14 +33,6 @@ http.interceptors.request.use((config) => {
     if (access && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${access}`
     }
-    // dev 模式绕过 Gateway，需要自行从 JWT 解出 userId 注入 X-User-Id
-    // 生产环境由 Gateway 解 JWT 后注入此 header
-    if (access && !config.headers['X-User-Id']) {
-      try {
-        const payload = JSON.parse(atob(access.split('.')[1]))
-        if (payload.sub) config.headers['X-User-Id'] = payload.sub
-      } catch { /* ignore malformed token */ }
-    }
   }
   // 签名接口注入 X-Sign 头
   if (config.sign) {
