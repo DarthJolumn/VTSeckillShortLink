@@ -42,3 +42,5 @@ build/
 
 # node_modules
 /livemall-ui-vue/node_modules
+
+/进度记录.md
