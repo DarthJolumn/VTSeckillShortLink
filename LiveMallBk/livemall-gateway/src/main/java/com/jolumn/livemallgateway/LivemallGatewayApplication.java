@@ -16,7 +16,9 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  *   <li>CORS 跨域</li>
  * </ol>
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {
+        "com.jolumn.livemallcommon"
+})
 public class LivemallGatewayApplication {
 
     static void main(String[] args) {
