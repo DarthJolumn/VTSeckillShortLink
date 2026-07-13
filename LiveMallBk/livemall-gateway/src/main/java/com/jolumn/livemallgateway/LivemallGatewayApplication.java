@@ -17,7 +17,8 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  * </ol>
  */
 @SpringBootApplication(scanBasePackages = {
-        "com.jolumn.livemallcommon"
+        "com.jolumn.livemallcommon",
+        "com.jolumn.livemallgateway"
 })
 public class LivemallGatewayApplication {
 

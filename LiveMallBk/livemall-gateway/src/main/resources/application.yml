@@ -75,7 +75,7 @@ logging:
 
 # ====== JWT 配置 ======
 jwt:
-  secret: ${JWT_SECRET:}  # 与业务服务保持一致
+  secret: ${JWT_SECRET:bGl2ZW1hbGwtZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTEyMzQ1Njc4OTA=}
 
 # ====== 签名验签配置 ======
 gateway:
