@@ -154,9 +154,7 @@
       </div>
     </transition>
 
-    <!-- 抢中烟花 + 礼物飘落 + 大礼物入场 -->
-    <Firework :trigger="fireworkTick" />
-    <GiftRain :trigger="giftRainTick" :icon="giftRainIcon" />
+    <!-- 大礼物入场（纯 CSS 动画，已删除 Firework/GiftRain Canvas 粒子以减负） -->
     <BigGift :trigger="bigGiftTick" :payload="bigGiftPayload" />
 
     <!-- 礼物商城抽屉 -->
@@ -183,8 +181,6 @@ import RankRow from '@/components/base/RankRow.vue'
 import RankPodium from '@/components/base/RankPodium.vue'
 import NumberFlip from '@/components/base/NumberFlip.vue'
 import NeonButton from '@/components/base/NeonButton.vue'
-import Firework from '@/components/effect/Firework.vue'
-import GiftRain from '@/components/effect/GiftRain.vue'
 import BigGift from '@/components/effect/BigGift.vue'
 import GiftPanel from '@/components/base/GiftPanel.vue'
 
@@ -216,9 +212,6 @@ const thumbColor = 'linear-gradient(135deg,#6b4dff,#00e5ff)'
 const phase = ref('pending')     // pending / running / soldout / ended
 const ordering = ref(false)
 const lastOrderAt = ref(0)
-const fireworkTick = ref(0)
-const giftRainTick = ref(0)
-const giftRainIcon = ref('🎁')
 const bigGiftTick = ref(0)
 const bigGiftPayload = ref({})
 const giftDrawerOpen = ref(false)
@@ -302,11 +295,9 @@ function onDrawerSend({ gift, quantity }) {
   }
   // 扣减演示余额
   walletBalance.value = Math.max(0, walletBalance.value - gift.price * quantity)
-  giftRainIcon.value = gift.icon
-  giftRainTick.value++
 }
 
-// 监听送礼广播：大礼物（火箭/跑车）触发全屏入场 + 飘落
+// 监听送礼广播：大礼物（火箭/跑车）触发全屏入场动画
 watch(() => live.giftFeed.length, () => {
   const latest = live.giftFeed[0]
   if (!latest) return
@@ -320,8 +311,6 @@ watch(() => live.giftFeed.length, () => {
       price: latest.price,
     }
     bigGiftTick.value++
-    giftRainIcon.value = latest.giftIcon
-    giftRainTick.value++
   }
 })
 
@@ -353,7 +342,6 @@ watch(() => live.secKillResult, (r) => {
   ordering.value = false
 
   if (r.ok) {
-    fireworkTick.value++
     // 生成订单（mock 持久化）
     const order = orderStore.create({
       id: route.params.roomId,
@@ -464,7 +452,6 @@ onBeforeUnmount(() => {
     linear-gradient(90deg, rgba(138, 99, 255, 0.12) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: linear-gradient(180deg, transparent, #000 30%, #000 80%, transparent);
-  animation: grid-drift 8s linear infinite;
 }
 .player__floor {
   position: absolute;
@@ -476,21 +463,14 @@ onBeforeUnmount(() => {
     linear-gradient(90deg, rgba(0, 229, 255, 0.22) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: linear-gradient(180deg, #000, transparent 80%);
-  animation: floor-move 4s linear infinite;
 }
-@keyframes grid-drift { from { background-position: 0 0; } to { background-position: 0 44px; } }
-@keyframes floor-move { from { background-position: 0 0; } to { background-position: 0 40px; } }
 
-/* 扫描线 */
+/* 扫描线（已移除持续动画以降低 GPU 合成开销） */
 .player__scan {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, transparent 48%, rgba(0, 229, 255, 0.18) 50%, transparent 52%);
-  background-size: 100% 220%;
-  animation: scan 3.6s linear infinite;
-  mix-blend-mode: screen;
+  background: linear-gradient(180deg, transparent 48%, rgba(0, 229, 255, 0.10) 50%, transparent 52%);
   pointer-events: none;
 }
-@keyframes scan { from { background-position: 0 -120%; } to { background-position: 0 120%; } }
 
 /* 暗角 */
 .player__vignette {

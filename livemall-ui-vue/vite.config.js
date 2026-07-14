@@ -16,7 +16,12 @@ export default defineConfig({
     proxy: {
       // 用户服务接口直连 8081（绕过网关 8080 便于联调）
       '/api/auth': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, '')
+      },
+      '/api/user': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api/, '')
       },

@@ -2,6 +2,7 @@ package com.jolumn.livemalluser.controller;
 
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.util.IdempotencyService;
+import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemalluser.dto.LoginRequest;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.dto.LogoutRequest;
@@ -18,6 +19,7 @@ public class AuthController {
 
     private final UserService userService;
     private final IdempotencyService idempotencyService;
+    private final JwtUtil jwtUtil;
 
     @PostMapping("/register")
     public Result<Void> register(
@@ -47,4 +49,10 @@ public class AuthController {
         userService.logout(request.getRefreshToken());
         return Result.ok();
     }
+//
+//    @GetMapping("/test-token")
+//    public Result<String> testToken() {
+//        String token = jwtUtil.generate(1L, 1, 3600);
+//        return Result.ok(token);
+//    }
 }
