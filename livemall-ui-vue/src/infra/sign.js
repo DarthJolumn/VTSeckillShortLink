@@ -2,7 +2,7 @@
 // 算法与后端 2.6/3.6.3 SignVerifyGlobalFilter 对齐：
 //   X-Timestamp = Date.now()
 //   X-Nonce     = uuid
-//   X-Sign      = HMAC-SHA256(timestamp + nonce + secret)
+//   X-Sign      = HMAC-SHA256(timestamp + nonce, secret)
 //   X-AppKey    = AppKey（用于服务端查 Secret）
 //
 // ⚠️ 安全困境见 前端设计方案.md §10.4：浏览器是公开客户端，
@@ -11,8 +11,8 @@
 import HmacSHA256 from 'crypto-js/hmac-sha256'
 import { STORAGE_KEY } from '@/constants'
 
-const APP_KEY = import.meta.env.VITE_APP_KEY || 'demo-web'
-const APP_SECRET = import.meta.env.VITE_APP_SECRET || 'demo-secret'
+const APP_KEY = import.meta.env.VITE_APP_KEY || 'livemall'
+const APP_SECRET = import.meta.env.VITE_APP_SECRET || 'livemall2026'
 
 function uuid() {
   if (crypto?.randomUUID) return crypto.randomUUID()
@@ -30,7 +30,7 @@ function uuid() {
 export function genSignHeaders() {
   const timestamp = String(Date.now())
   const nonce = uuid()
-  const raw = timestamp + nonce + APP_SECRET
+  const raw = timestamp + nonce
   const sign = HmacSHA256(raw, APP_SECRET).toString()
   return {
     'X-Timestamp': timestamp,

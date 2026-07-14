@@ -23,7 +23,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,6 +40,9 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
     private final IdempotencyService idempotencyService;
+
+    private final ConcurrentHashMap<String, CompletableFuture<LoginResponse>>
+            pendingRefreshes = new ConcurrentHashMap<>();
 
 
     public String preRegister(String password) {
@@ -126,6 +133,87 @@ public class UserService {
         String userId = parts[0];
         String deviceId = parts[2];
         redisTemplate.opsForSet().remove("device_sessions:" + userId, deviceId);
+    }
+
+    public LoginResponse refresh(String refreshToken) {
+        // ── 请求合并：同一个 token 的并发请求只执行一次 ──
+        CompletableFuture<LoginResponse> existing = pendingRefreshes.get(refreshToken);
+        if (existing != null) {
+            try {
+                return existing.get(5, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                log.warn("等待刷新超时, refreshToken={}", maskToken(refreshToken));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new BizException(500, "系统繁忙");
+            } catch (ExecutionException e) {
+                throw new BizException(1013, "登录已过期，请重新登录");
+            }
+        }
+
+        CompletableFuture<LoginResponse> future = new CompletableFuture<>();
+        CompletableFuture<LoginResponse> old = pendingRefreshes.putIfAbsent(refreshToken, future);
+        if (old != null) {
+            try {
+                return old.get(5, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new BizException(1013, "登录已过期，请重新登录");
+            }
+        }
+
+        try {
+            // ── 分布式锁：防止同一 token 被两个节点同时刷新 ──
+            String lockKey = "refresh:lock:" + refreshToken;
+            Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, "1", 3, TimeUnit.SECONDS);
+            if (!Boolean.TRUE.equals(locked)) {
+                throw new BizException(1013, "登录已过期，请重新登录");
+            }
+
+            // ── Rotation：GET 旧 token → DELETE → 签发新 token ──
+            String refreshKey = "refresh:" + refreshToken;
+            String value = redisTemplate.opsForValue().get(refreshKey);
+            if (value == null) {
+                throw new BizException(1013, "登录已过期，请重新登录");
+            }
+            redisTemplate.delete(refreshKey);
+
+            String[] parts = value.split(":", 3);
+            if (parts.length < 3) {
+                log.error("刷新时 token value 格式异常, refreshToken={}, value={}", refreshToken, value);
+                throw new BizException(500, "token 数据异常");
+            }
+
+            Long userId = Long.valueOf(parts[0]);
+            Integer role = Integer.valueOf(parts[1]);
+            String deviceId = parts[2];
+
+            // 签发新 Access Token
+            String newAccessToken = jwtUtil.generate(userId, role, 900);
+
+            // 新 Refresh Token（Rotation）
+            String newRefreshToken = "rft_" + UUID.randomUUID().toString().replace("-", "");
+            redisTemplate.opsForValue().set(
+                    "refresh:" + newRefreshToken,
+                    userId + ":" + role + ":" + deviceId,
+                    7, TimeUnit.DAYS);
+
+            LoginResponse resp = LoginResponse.of(newAccessToken, newRefreshToken);
+            future.complete(resp);
+            return resp;
+
+        } catch (BizException e) {
+            future.completeExceptionally(e);
+            throw e;
+        } finally {
+            pendingRefreshes.remove(refreshToken);
+            redisTemplate.delete("refresh:lock:" + refreshToken);
+        }
+    }
+
+    private String maskToken(String token) {
+        return token != null && token.length() > 10
+                ? token.substring(0, 10) + "***" : "***";
     }
 
     public List<DeviceInfo> getDevices(Long userId) {

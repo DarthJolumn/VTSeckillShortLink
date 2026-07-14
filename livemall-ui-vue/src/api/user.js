@@ -12,7 +12,7 @@ export const authApi = {
   },
   /** 刷新 Access Token */
   refresh(refreshToken) {
-    return http.post('/auth/refresh', { refreshToken }, { sign: true, _raw: true })
+    return http.post('/auth/refresh', { refreshToken }, { _raw: true })
   },
   /** 退出 */
   logout(refreshToken) {

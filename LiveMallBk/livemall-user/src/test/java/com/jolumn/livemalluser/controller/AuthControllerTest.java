@@ -3,6 +3,7 @@ package com.jolumn.livemalluser.controller;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.exception.GlobalExceptionHandler;
 import com.jolumn.livemallcommon.util.IdempotencyService;
+import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,9 @@ class AuthControllerTest {
 
     @MockBean
     private IdempotencyService idempotencyService;
+
+    @MockBean
+    private JwtUtil jwtUtil;
 
     @Test
     void register_ok() throws Exception {
@@ -150,6 +154,35 @@ class AuthControllerTest {
     @Test
     void logout_emptyRefreshToken_returns400() throws Exception {
         mockMvc.perform(post("/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":""}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void refresh_ok() throws Exception {
+        LoginResponse resp = LoginResponse.of("new-jwt.xxx", "rft_new");
+        when(userService.refresh("rft_old")).thenReturn(resp);
+
+        mockMvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"rft_old"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(Result.SUCCESS_CODE))
+                .andExpect(jsonPath("$.data.accessToken").value("new-jwt.xxx"))
+                .andExpect(jsonPath("$.data.refreshToken").value("rft_new"));
+
+        verify(userService).refresh("rft_old");
+    }
+
+    @Test
+    void refresh_emptyRefreshToken_returns400() throws Exception {
+        mockMvc.perform(post("/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"refreshToken":""}

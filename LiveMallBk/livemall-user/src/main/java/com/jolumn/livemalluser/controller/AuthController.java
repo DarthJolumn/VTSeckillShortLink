@@ -6,6 +6,7 @@ import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemalluser.dto.LoginRequest;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.dto.LogoutRequest;
+import com.jolumn.livemalluser.dto.RefreshRequest;
 import com.jolumn.livemalluser.dto.RegisterRequest;
 import com.jolumn.livemalluser.service.UserService;
 import jakarta.validation.Valid;
@@ -49,10 +50,10 @@ public class AuthController {
         userService.logout(request.getRefreshToken());
         return Result.ok();
     }
-//
-//    @GetMapping("/test-token")
-//    public Result<String> testToken() {
-//        String token = jwtUtil.generate(1L, 1, 3600);
-//        return Result.ok(token);
-//    }
+
+    @PostMapping("/refresh")
+    public Result<LoginResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        LoginResponse response = userService.refresh(request.getRefreshToken());
+        return Result.ok(response);
+    }
 }

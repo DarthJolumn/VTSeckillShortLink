@@ -26,10 +26,10 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private static final List<String> WHITE_LIST = List.of(
             "/auth/login",
-            "/auth/register"
-//            "/auth/test-token",
-//            "/actuator/health",
-//            "/user/ping"
+            "/auth/register",
+            "/auth/refresh",
+            "/auth/test-token",
+            "/actuator/health"
     );
 
     private final JwtUtil jwtUtil;

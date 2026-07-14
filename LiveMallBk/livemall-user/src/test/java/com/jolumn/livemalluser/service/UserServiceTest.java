@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -244,6 +245,69 @@ class UserServiceTest {
         var devices = userService.getDevices(1L);
 
         assertThat(devices).isEmpty();
+    }
+
+    @Test
+    void refresh_success_returnsNewTokens() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.setIfAbsent(eq("refresh:lock:rft_123"), eq("1"), eq(3L), eq(TimeUnit.SECONDS)))
+                .thenReturn(true);
+        when(valOps.get("refresh:rft_123")).thenReturn("1:1:device-abc");
+        when(jwtUtil.generate(1L, 1, 900)).thenReturn("new-jwt.xxx");
+
+        LoginResponse resp = userService.refresh("rft_123");
+
+        assertThat(resp.getAccessToken()).isEqualTo("new-jwt.xxx");
+        assertThat(resp.getRefreshToken()).startsWith("rft_");
+        assertThat(resp.getExpiresIn()).isEqualTo(900);
+        verify(redisTemplate).delete("refresh:rft_123");
+        verify(valOps).set(startsWith("refresh:rft_"), anyString(), eq(7L), eq(TimeUnit.DAYS));
+    }
+
+    @Test
+    void refresh_tokenExpired_throws1013() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.setIfAbsent(eq("refresh:lock:rft_123"), eq("1"), eq(3L), eq(TimeUnit.SECONDS)))
+                .thenReturn(true);
+        when(valOps.get("refresh:rft_123")).thenReturn(null);
+
+        assertThatThrownBy(() -> userService.refresh("rft_123"))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(1013);
+    }
+
+    @Test
+    void refresh_lockConflict_throws1013() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.setIfAbsent(eq("refresh:lock:rft_123"), eq("1"), eq(3L), eq(TimeUnit.SECONDS)))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> userService.refresh("rft_123"))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(1013);
+    }
+
+    @Test
+    void refresh_invalidValueFormat_throws500() {
+        ValueOperations<String, String> valOps = mock(ValueOperations.class);
+
+        when(redisTemplate.opsForValue()).thenReturn(valOps);
+        when(valOps.setIfAbsent(eq("refresh:lock:rft_123"), eq("1"), eq(3L), eq(TimeUnit.SECONDS)))
+                .thenReturn(true);
+        when(valOps.get("refresh:rft_123")).thenReturn("bad-format");
+
+        assertThatThrownBy(() -> userService.refresh("rft_123"))
+                .isInstanceOf(BizException.class)
+                .extracting(e -> ((BizException) e).getCode())
+                .isEqualTo(500);
     }
 
     private LoginRequest loginReq(String username, String password) {
