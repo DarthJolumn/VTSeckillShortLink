@@ -41,6 +41,17 @@ http.interceptors.request.use((config) => {
         if (payload.sub) config.headers['X-User-Id'] = payload.sub
       } catch { /* ignore malformed token */ }
     }
+    // 预刷新：AT 剩不到 5min 时异步续期，秒杀时保证持有新鲜 AT
+    const isAuthEndpoint = /\/auth\//.test(config.url)
+    if (access && !isAuthEndpoint) {
+      try {
+        const payload = JSON.parse(atob(access.split('.')[1]))
+        const remaining = payload.exp * 1000 - Date.now()
+        if (remaining < 5 * 60 * 1000) {
+          refreshTokenOnce().catch(() => {})
+        }
+      } catch { /* ignore malformed token */ }
+    }
   }
   // 签名接口注入 X-Sign 头
   if (config.sign) {
