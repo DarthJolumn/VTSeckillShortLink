@@ -3,6 +3,8 @@ package com.jolumn.livemallgateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 
 /**
  * livemall-gateway — WebFlux 网关服务.
@@ -16,10 +18,14 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
  *   <li>CORS 跨域</li>
  * </ol>
  */
-@SpringBootApplication(scanBasePackages = {
-        "com.jolumn.livemallcommon",
-        "com.jolumn.livemallgateway"
-})
+@SpringBootApplication
+@ComponentScan(
+        basePackages = {"com.jolumn.livemallcommon", "com.jolumn.livemallgateway"},
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = com.jolumn.livemallcommon.exception.GlobalExceptionHandler.class
+        )
+)
 public class LivemallGatewayApplication {
 
     static void main(String[] args) {

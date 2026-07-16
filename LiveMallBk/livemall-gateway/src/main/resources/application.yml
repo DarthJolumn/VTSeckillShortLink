@@ -37,7 +37,7 @@ spring:
         - id: user-service
           uri: lb://livemall-user
           predicates:
-            - Path=/auth/**, /user/**
+            - Path=/auth/**,/user/**
 
         # ---------- 秒杀服务 ----------
         - id: seckill-service
@@ -51,7 +51,13 @@ spring:
           predicates:
             - Path=/leaderboard/**
 
-        # ---------- WebSocket 路由 ----------
+        # ---------- 直播间 REST 接口（开播/关播/房间信息） → websocket 服务 ----------
+        - id: live-service
+          uri: lb://livemall-websocket
+          predicates:
+            - Path=/live/**
+
+        # ---------- WebSocket 长连接 ----------
         - id: websocket-service
           uri: lb:ws://livemall-websocket
           predicates:
@@ -81,3 +87,8 @@ jwt:
 gateway:
   sign:
     app-secrets: ${SIGN_APP_SECRETS:livemall:livemall2026}  # appKey:secret 格式
+  auth:
+    # 完全公开路径（不验 JWT，逗号分隔）
+    public-paths: ${GATEWAY_PUBLIC_PATHS:/auth/login,/auth/register,/auth/refresh,/ws/**,/actuator/health}
+    # GET 公开路径（仅 GET 放行，其他 method 需 JWT）
+    public-get-paths: ${GATEWAY_PUBLIC_GET_PATHS:/live/room/*,/leaderboard/**}

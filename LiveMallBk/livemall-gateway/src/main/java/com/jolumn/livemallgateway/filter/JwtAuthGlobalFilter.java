@@ -9,66 +9,81 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 
 @Component
 public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthGlobalFilter.class);
 
-    private static final List<String> WHITE_LIST = List.of(
-            "/auth/login",
-            "/auth/register",
-            "/auth/refresh",
-            "/auth/test-token",
-            "/actuator/health"
-    );
+    private static final AntPathMatcher MATCHER = new AntPathMatcher();
 
     private final JwtUtil jwtUtil;
+    private final List<String> publicPaths;
+    private final List<String> publicGetPaths;
 
-    public JwtAuthGlobalFilter(JwtUtil jwtUtil) {
+    public JwtAuthGlobalFilter(
+            JwtUtil jwtUtil,
+            @org.springframework.beans.factory.annotation.Value("${gateway.auth.public-paths:}") String publicPathsCfg,
+            @org.springframework.beans.factory.annotation.Value("${gateway.auth.public-get-paths:}") String publicGetPathsCfg) {
         this.jwtUtil = jwtUtil;
+        this.publicPaths = parsePatterns(publicPathsCfg);
+        this.publicGetPaths = parsePatterns(publicGetPathsCfg);
+    }
+
+    private static List<String> parsePatterns(String cfg) {
+        if (cfg == null || cfg.isBlank()) return List.of();
+        return Arrays.stream(cfg.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // 白名单跳过 JWT 验证
-        if (isWhiteListed(path)) {
+        // 1. 完全公开路径 → 放行（不验 JWT，不注入 X-User-Id）
+        if (matchAny(this.publicPaths, path)) {
             return chain.filter(exchange);
         }
 
-        // 签名验签通过，跳过 JWT
+        // 2. GET 公开路径 → 放行
+        HttpMethod method = exchange.getRequest().getMethod();
+        if (method == HttpMethod.GET && matchAny(this.publicGetPaths, path)) {
+            return chain.filter(exchange);
+        }
+
+        // 3. 签名验签通过 → 跳过 JWT
         if (Boolean.TRUE.equals(exchange.getAttribute("signPassed"))) {
             return chain.filter(exchange);
         }
 
-        // 提取 Authorization header
+        // 4. 其余路径需 JWT
         String token = extractToken(exchange.getRequest());
         if (token == null) {
-            return unauthorized(exchange, "Missing token");
+            return unauthorized(exchange, "请先登录");
         }
 
-        // 验证 JWT
         try {
             Claims claims = jwtUtil.parse(token);
             Long userId = Long.parseLong(claims.getSubject());
             Integer role = claims.get("role", Integer.class);
 
-            // 存入 exchange attributes
             exchange.getAttributes().put("userId", userId);
             exchange.getAttributes().put("role", role);
 
-            // 注入 Header 给下游服务
             ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
                     .header("X-User-Id", userId.toString())
                     .header("X-User-Role", role.toString())
@@ -77,7 +92,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
         } catch (Exception e) {
             log.warn("JWT 验证失败: {}", e.getMessage());
-            return unauthorized(exchange, "Invalid token");
+            return unauthorized(exchange, "Token 无效或已过期");
         }
     }
 
@@ -86,8 +101,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return -5;
     }
 
-    private boolean isWhiteListed(String path) {
-        return WHITE_LIST.stream().anyMatch(path::startsWith);
+    private boolean matchAny(List<String> patterns, String path) {
+        if (patterns == null || patterns.isEmpty()) return false;
+        return patterns.stream().anyMatch(p -> MATCHER.match(p, path));
     }
 
     private String extractToken(ServerHttpRequest request) {

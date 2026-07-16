@@ -13,8 +13,7 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOrigin("http://localhost:5173"); // 前端 dev server
-        config.addAllowedOrigin("http://localhost:8080"); // Gateway 自身（Knife4j 调试）
+        config.addAllowedOriginPattern("*"); // 开发环境允许任意 origin
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
 
