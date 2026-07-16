@@ -1,11 +1,14 @@
 // 直播间状态 · 房间 / 在线 / 弹幕队列（环形缓冲）/ 礼物 / 排行榜 / 连接状态
+// v1 匿名观看改造：支持匿名 WS 连接 + 登录后 AUTH 升级
 import { defineStore } from 'pinia'
 import { WsClient, WS_STATUS } from '@/infra/ws-client'
 import { WS_TYPE } from '@/constants'
+import { useUserStore } from '@/stores/user'
+import { tokens } from '@/infra/auth'
+import { watch } from 'vue'
 
-const BARRAGE_MAX = 80 // 环形缓冲上限
+const BARRAGE_MAX = 80
 
-// mock 开关：后端未就绪时默认走 mock，让直播间动效闭环可演示
 const USE_MOCK = import.meta.env.VITE_USE_WS_MOCK === '1' || !tokensExists()
 
 function tokensExists() {
@@ -63,6 +66,7 @@ export const useLiveStore = defineStore('live', {
 
       // 订阅下行消息
       const sub = (type, fn) => this._unsubs.push(this._client.on(type, fn))
+      sub(WS_TYPE.CONNECTED, (d) => { this.online = d.online || 0 })
       sub(WS_TYPE.BARRAGE_DOWN, (d) => this.pushBarrage(d))
       sub(WS_TYPE.GIFT_DOWN, (d) => this.onGift(d))
       sub(WS_TYPE.ONLINE_COUNT, (d) => { this.online = d.count })
@@ -71,8 +75,21 @@ export const useLiveStore = defineStore('live', {
       sub(WS_TYPE.KICK, (d) => { this.kicked = d || { reason: '同一账号在别处登录' } })
       sub(WS_TYPE.BAN, () => { this.kicked = { reason: '账号已被封禁', ban: true } })
       sub(WS_TYPE.ROOM_CLOSED, () => { this.kicked = { reason: '主播已下播', closed: true } })
+      sub(WS_TYPE.AUTH_OK, (d) => { console.log('[WS] AUTH 升级成功, userId=', d.userId) })
+      sub(WS_TYPE.NEED_AUTH, () => { console.log('[WS] 需要登录才能操作') })
 
       this._client.connect()
+
+      // 监听用户登录态变化，登录成功后自动发 AUTH 升级 WS 连接
+      const userStore = useUserStore()
+      this._authUnwatch = watch(
+        () => userStore.accessToken,
+        (newToken) => {
+          if (newToken && this._client && this._client.status === WS_STATUS.OPEN) {
+            this._client.upgradeAuth(newToken)
+          }
+        }
+      )
     },
 
     pushBarrage(d) {
@@ -118,6 +135,8 @@ export const useLiveStore = defineStore('live', {
     leave() {
       this._unsubs.forEach((fn) => fn?.())
       this._unsubs = []
+      this._authUnwatch?.()
+      this._authUnwatch = null
       this._client?.destroy()
       this._client = null
       this.status = WS_STATUS.IDLE

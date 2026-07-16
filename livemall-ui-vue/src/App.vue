@@ -4,10 +4,11 @@
       <component :is="Component" :key="route.fullPath" />
     </transition>
   </router-view>
+  <LoginModal />
 </template>
 
 <script setup>
-// 顶层只承载路由出口与转场动效，业务布局由各 layout 负责
+import LoginModal from '@/components/auth/LoginModal.vue'
 </script>
 
 <style>

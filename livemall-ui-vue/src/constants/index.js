@@ -46,11 +46,16 @@ export const ROOM_STATUS = Object.freeze({
 export const WS_TYPE = Object.freeze({
   // 上行
   PING: 'PING',
+  AUTH: 'AUTH',            // 匿名连接运行时升级为认证连接
   BARRAGE: 'BARRAGE',
   GIFT: 'GIFT',
   SEC_KILL: 'SEC_KILL',
   // 下行
   PONG: 'PONG',
+  CONNECTED: 'CONNECTED',   // 握手成功回执
+  AUTH_OK: 'AUTH_OK',        // AUTH 升级成功
+  AUTH_FAILED: 'AUTH_FAILED',// AUTH 升级失败 / 握手验签失败
+  NEED_AUTH: 'NEED_AUTH',    // 匿名用户尝试写操作时回执
   BARRAGE_DOWN: 'BARRAGE',
   GIFT_DOWN: 'GIFT',
   SEC_KILL_RESULT: 'SEC_KILL_RESULT',

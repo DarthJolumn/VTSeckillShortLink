@@ -1,8 +1,9 @@
 // 路由守卫 · 鉴权 / 角色 / 标题
+// v1 匿名观看改造：首页 + 直播间匿名可看，需登录页面弹窗不跳转
 import { useUserStore } from '@/stores/user'
+import { useLoginModal } from '@/composables/useLoginModal'
 import { ROLE } from '@/constants'
 
-// 各角色默认落地页
 const HOME_BY_ROLE = {
   [ROLE.AUDIENCE]: '/',
   [ROLE.ANCHOR]: '/anchor/stream',
@@ -14,21 +15,27 @@ export function installGuards(router) {
     const userStore = useUserStore()
     document.title = to.meta.title ? `${to.meta.title} · LiveMall` : 'LiveMall · 直播秒杀'
 
-    // 公共页直接放行
+    // 1. 公共页直接放行
     if (to.meta.public) {
-      // 已登录用户访问登录/注册 → 跳首页
       if (userStore.isLogin && (to.name === 'login' || to.name === 'register')) {
         return next({ path: HOME_BY_ROLE[userStore.role] || '/' })
       }
       return next()
     }
 
-    // 需登录
-    if (!userStore.isLogin) {
-      return next({ path: '/login', query: { redirect: to.fullPath } })
+    // 2. 首页 + 直播间 — 匿名可看
+    if (to.name === 'home' || to.name === 'live-room') {
+      return next()
     }
 
-    // 角色校验
+    // 3. 需登录页面 — 未登录弹出登录弹窗，不跳转
+    if (!userStore.isLogin) {
+      const { showLoginModal } = useLoginModal()
+      showLoginModal({ redirect: to.fullPath })
+      return next(false)
+    }
+
+    // 4. 角色校验
     const roles = to.meta.roles
     if (roles && !roles.includes(userStore.role)) {
       return next('/403')

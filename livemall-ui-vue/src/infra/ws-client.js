@@ -49,10 +49,13 @@ export class WsClient {
   connect() {
     if (this.mock) return this._startMock()
     this._setStatus(WS_STATUS.CONNECTING)
-    // VITE_WS_BASE 形如 ws://host/ws 或 wss://host/ws；末尾不带 /ws 也兼容
     const base = (import.meta.env.VITE_WS_BASE || `ws://${location.host}/ws`).replace(/\/ws$/, '')
-    const token = tokens.getAccessToken() || 'demo-token'
-    const url = `${base}/ws/live/${this.roomId}?token=${encodeURIComponent(token)}`
+    const token = tokens.getAccessToken()
+    // token 可选：无 token → 匿名连接（只收不发）
+    let url = `${base}/ws/live/${this.roomId}`
+    if (token) {
+      url += `?token=${encodeURIComponent(token)}`
+    }
     try {
       this._ws = new WebSocket(url)
     } catch (e) {
@@ -63,6 +66,16 @@ export class WsClient {
     this._ws.onmessage = this._onMessage.bind(this)
     this._ws.onerror = () => { /* 由 onclose 兜底重连 */ }
     this._ws.onclose = this._onCloseEvt.bind(this)
+  }
+
+  // 匿名连接运行时升级为认证连接
+  upgradeAuth(token) {
+    if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return
+    this._sendRaw({
+      type: 'AUTH',
+      data: { token: encodeURIComponent(token) },
+      timestamp: Date.now(),
+    })
   }
 
   async _startMock() {

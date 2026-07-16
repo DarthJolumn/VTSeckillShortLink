@@ -33,14 +33,7 @@ http.interceptors.request.use((config) => {
     if (access && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${access}`
     }
-    // dev 模式绕过 Gateway，需要自行从 JWT 解出 userId 注入 X-User-Id
-    // 生产环境由 Gateway 解 JWT 后注入此 header
-    if (access && !config.headers['X-User-Id']) {
-      try {
-        const payload = JSON.parse(atob(access.split('.')[1]))
-        if (payload.sub) config.headers['X-User-Id'] = payload.sub
-      } catch { /* ignore malformed token */ }
-    }
+    // X-User-Id 由 Gateway 解 JWT 后注入，前端不要重复注入（避免下游出现重复 Header）
     // 预刷新：AT 剩不到 5min 时异步续期，秒杀时保证持有新鲜 AT
     const isAuthEndpoint = /\/auth\//.test(config.url)
     if (access && !isAuthEndpoint) {
