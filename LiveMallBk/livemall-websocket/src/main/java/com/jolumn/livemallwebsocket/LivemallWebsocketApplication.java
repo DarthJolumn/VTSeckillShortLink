@@ -29,9 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemallwebsocket",
-        "com.jolumn.livemallcommon.util",
-        "com.jolumn.livemallcommon.exception",
-        "com.jolumn.livemallcommon.dto"
+        "com.jolumn.livemallcommon"
 })
 @EnableDubbo
 @EnableScheduling
