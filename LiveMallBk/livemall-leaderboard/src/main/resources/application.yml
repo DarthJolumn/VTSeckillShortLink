@@ -3,6 +3,8 @@
 # ===================================================================
 server:
   port: 8084
+  http2:
+    enabled: false
 
 spring:
   application:
@@ -62,7 +64,7 @@ dubbo:
     name: dubbo
     port: 20884
   registry:
-    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
   scan:
     base-packages: com.jolumn.livemallleaderboard.service
   provider:

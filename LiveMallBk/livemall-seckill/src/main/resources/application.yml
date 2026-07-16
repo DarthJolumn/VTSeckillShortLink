@@ -3,6 +3,8 @@
 # ===================================================================
 server:
   port: 8082
+  http2:
+    enabled: false
 
 spring:
   application:
@@ -93,7 +95,7 @@ dubbo:
     name: dubbo
     port: 20882
   registry:
-    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
   consumer:
     check: false  # WsPushService provider 可能未启动时不阻塞
     timeout: 3000
