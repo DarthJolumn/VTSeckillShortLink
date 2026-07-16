@@ -1,7 +1,10 @@
 package com.jolumn.livemalluser.controller;
 
+import com.jolumn.livemallcommon.annotation.RequireAuth;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemalluser.dto.DeviceInfo;
+import com.jolumn.livemalluser.dto.UserProfileVO;
+import com.jolumn.livemalluser.entity.User;
 import com.jolumn.livemalluser.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -17,11 +20,31 @@ public class UserController {
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserService userService;
 
+    @GetMapping("/profile")
+    @RequireAuth
+    public Result<UserProfileVO> getProfile(@RequestHeader("X-User-Id") Long userId) {
+        User user = userService.findById(userId);
+        UserProfileVO vo = toProfileVO(user);
+        return Result.ok(vo);
+    }
+
 //    @GetMapping("/ping")
 //    public Result<String> ping() {
 //        log.info("pong");
 //        return Result.ok("pong");
 //    }
+
+    private UserProfileVO toProfileVO(User user) {
+        UserProfileVO vo = new UserProfileVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setPhone(user.getPhone());
+        vo.setRole(user.getRole());
+        vo.setStatus(user.getStatus());
+        return vo;
+    }
 
     @GetMapping("/devices")
     public Result<List<DeviceInfo>> getDevices(

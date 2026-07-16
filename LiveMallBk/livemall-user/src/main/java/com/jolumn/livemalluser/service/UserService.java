@@ -227,12 +227,20 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    public User findById(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(404, "用户不存在");
+        }
+        return user;
+    }
+
     private boolean existsByUsername(String username) {
         return userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, username)) > 0;
     }
 
-    private User findByUsername(String username) {
+    public User findByUsername(String username) {
         return userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, username));
     }
