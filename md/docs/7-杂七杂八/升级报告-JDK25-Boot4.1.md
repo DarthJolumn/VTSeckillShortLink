@@ -1,4 +1,4 @@
-# LiveMall 架构升级可行性报告
+    # LiveMall 架构升级可行性报告
 
 > JDK 21 + Spring Boot 3.2.7 → JDK 25 LTS + Spring Boot 4.1.0 全家桶
 >

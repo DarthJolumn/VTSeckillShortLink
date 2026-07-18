@@ -3,8 +3,6 @@
 # ===================================================================
 server:
   port: 8082
-  http2:
-    enabled: false
 
 spring:
   application:

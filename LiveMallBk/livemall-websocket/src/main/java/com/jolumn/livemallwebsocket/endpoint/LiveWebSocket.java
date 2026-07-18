@@ -26,6 +26,7 @@ public class LiveWebSocket {
 
     private static WsSessionManager sessionManager;
     private static JwtUtil jwtUtil;
+    private static long maxSessions = 200_000;
 
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
@@ -43,6 +44,17 @@ public class LiveWebSocket {
                 sendJson(session, Map.of("type", "AUTH_FAILED", "data",
                         Map.of("reason", "Token 无效或已过期")));
             }
+        }
+
+        // 连接上限保护
+        if (sessionManager.totalOnline() >= maxSessions) {
+            log.warn("连接数已达上限: online={}, max={}", sessionManager.totalOnline(), maxSessions);
+            sendJson(session, Map.of("type", "ERROR", "data",
+                    Map.of("reason", "服务器繁忙，请稍后重试")));
+            try { session.close(new jakarta.websocket.CloseReason(
+                    jakarta.websocket.CloseReason.CloseCodes.TRY_AGAIN_LATER,
+                    "Server at capacity")); } catch (IOException ignored) {}
+            return;
         }
 
         WsSession ws = new WsSession(session, roomId, userId, role);
@@ -237,5 +249,10 @@ public class LiveWebSocket {
     @org.springframework.beans.factory.annotation.Autowired
     public void setJwtUtil(JwtUtil jwtUtil) {
         LiveWebSocket.jwtUtil = jwtUtil;
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${ws.max-sessions:200000}")
+    public void setMaxSessions(long maxSessions) {
+        LiveWebSocket.maxSessions = maxSessions;
     }
 }
