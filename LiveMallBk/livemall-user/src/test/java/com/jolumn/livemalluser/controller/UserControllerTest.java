@@ -19,8 +19,9 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -101,5 +102,29 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(Result.SUCCESS_CODE))
                 .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    void kickDevice_ok() throws Exception {
+        doNothing().when(userService).kickDevice(1L, "d1");
+
+        mockMvc.perform(delete("/user/devices/d1")
+                        .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(Result.SUCCESS_CODE));
+
+        verify(userService).kickDevice(1L, "d1");
+    }
+
+    @Test
+    void kickDevice_notFound() throws Exception {
+        doThrow(new BizException(404, "设备不在线"))
+                .when(userService).kickDevice(1L, "d-none");
+
+        mockMvc.perform(delete("/user/devices/d-none")
+                        .header("X-User-Id", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.message").value("设备不在线"));
     }
 }

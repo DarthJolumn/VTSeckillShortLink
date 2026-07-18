@@ -20,4 +20,9 @@ public interface WsPushService {
      * 强制踢用户下线
      */
     boolean kickUser(Long userId, String reason);
+
+    /**
+     * 踢掉指定设备
+     */
+    boolean kickDevice(Long userId, String deviceId);
 }

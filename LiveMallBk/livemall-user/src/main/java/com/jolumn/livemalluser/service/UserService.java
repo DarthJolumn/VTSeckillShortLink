@@ -1,6 +1,7 @@
 package com.jolumn.livemalluser.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.jolumn.livemallcommon.api.WsPushService;
 import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallcommon.util.IdempotencyService;
 import com.jolumn.livemallcommon.util.JwtUtil;
@@ -18,6 +19,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.apache.dubbo.config.annotation.DubboReference;
 
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +43,9 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
     private final IdempotencyService idempotencyService;
+
+    @DubboReference
+    private WsPushService wsPushService;
 
     private final ConcurrentHashMap<String, CompletableFuture<LoginResponse>>
             pendingRefreshes = new ConcurrentHashMap<>();
@@ -225,6 +231,15 @@ public class UserService {
         return deviceIds.stream()
                 .map(did -> DeviceInfo.of(did, false))
                 .collect(Collectors.toList());
+    }
+
+    public void kickDevice(Long userId, String deviceId) {
+        Long removed = redisTemplate.opsForSet()
+                .remove("device_sessions:" + userId, deviceId);
+        if (removed == 0) {
+            throw new BizException(404, "设备不在线");
+        }
+        wsPushService.kickDevice(userId, deviceId);
     }
 
     public User findById(Long userId) {

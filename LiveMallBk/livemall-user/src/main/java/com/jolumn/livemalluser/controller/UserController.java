@@ -59,4 +59,13 @@ public class UserController {
         }
         return Result.ok(devices);
     }
+
+    @DeleteMapping("/devices/{deviceId}")
+    @RequireAuth
+    public Result<Void> kickDevice(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable String deviceId) {
+        userService.kickDevice(userId, deviceId);
+        return Result.ok();
+    }
 }
