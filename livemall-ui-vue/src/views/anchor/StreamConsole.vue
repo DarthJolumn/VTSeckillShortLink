@@ -209,8 +209,9 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { showToast } from '@/utils/toast'
+import { liveApi } from '@/api/live'
 import NeonButton from '@/components/base/NeonButton.vue'
 import NumberFlip from '@/components/base/NumberFlip.vue'
 
@@ -243,36 +244,45 @@ const camOn = ref(true)
 
 async function onStart() {
   if (!form.title) { showToast('请填写直播标题', 'warning'); return }
+  // 1. 先调后端创建房间
+  let room
   try {
-    // 请求摄像头（演示用）
+    room = await liveApi.startRoom({
+      title: form.title,
+      category: form.category,
+      coverColor: COVER_COLORS[form.coverIdx],
+    })
+  } catch (e) {
+    showToast('开播失败：' + (e?.message || '后端未就绪'), 'danger')
+    return
+  }
+  roomId.value = room.id
+  // 生成推流密钥（演示用）
+  streamKey.value = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  // 2. 尝试打开摄像头
+  try {
     const s = await navigator.mediaDevices.getUserMedia({
       video: camOn.value ? { width: 1280, height: 720 } : false,
       audio: micOn.value,
     })
     stream.value = s
-    // 等下一帧绑定到 video
     requestAnimationFrame(() => {
       if (videoRef.value) videoRef.value.srcObject = s
     })
-    live.value = true
-    roomId.value = `R${Date.now().toString(36).toUpperCase().slice(-6)}`
-    streamKey.value = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-    startedAt.value = Date.now()
-    showToast('直播已开始', 'success')
-    startStatsTimer()
   } catch (e) {
-    // 摄像头不可用 → 仅切到 live 状态做演示
-    live.value = true
-    roomId.value = `R${Date.now().toString(36).toUpperCase().slice(-6)}`
-    streamKey.value = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-    startedAt.value = Date.now()
     showToast('未取得摄像头权限，进入无视频演示模式', 'info')
-    startStatsTimer()
   }
+  live.value = true
+  startedAt.value = Date.now()
+  showToast('直播已开始', 'success')
+  startStatsTimer()
 }
 
 function onStop() {
   if (!confirm('确定结束本次直播？')) return
+  if (roomId.value) {
+    liveApi.stopRoom(roomId.value).catch(() => {})
+  }
   if (stream.value) {
     stream.value.getTracks().forEach(t => t.stop())
     stream.value = null
@@ -280,7 +290,6 @@ function onStop() {
   live.value = false
   stopStatsTimer()
   showToast(`本场直播结束 · 时长 ${elapsedLabel.value} · 收益 ¥${stats.revenue.toFixed(2)}`, 'success')
-  // 重置部分统计
   Object.assign(stats, { online: 0, peak: 0, barrage: 0, gift: 0, likes: 0, revenue: 0 })
 }
 
@@ -374,6 +383,35 @@ async function copyLink() {
     showToast('复制失败，请手动选择', 'danger')
   }
 }
+
+// —— 刷新后恢复直播状态 ——
+async function restoreIfLive() {
+  try {
+    const room = await liveApi.getMyActive()
+    if (room && room.status === 1) {
+      roomId.value = room.id
+      live.value = true
+      startedAt.value = room.startedAt ? new Date(room.startedAt).getTime() : Date.now()
+      form.title = room.title
+      form.category = room.category
+      startStatsTimer()
+      // 尝试重连摄像头
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: camOn.value ? { width: 1280, height: 720 } : false,
+          audio: micOn.value,
+        })
+        stream.value = s
+        requestAnimationFrame(() => {
+          if (videoRef.value) videoRef.value.srcObject = s
+        })
+      } catch { /* 摄像头不可用，保持无视频模式 */ }
+      showToast('已恢复直播', 'info')
+    }
+  } catch { /* 后端未就绪 */ }
+}
+
+onMounted(() => { restoreIfLive() })
 
 onBeforeUnmount(() => {
   stopStatsTimer()

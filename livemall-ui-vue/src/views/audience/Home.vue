@@ -28,16 +28,17 @@
       <div class="cards">
         <article v-for="r in rooms" :key="r.id" class="live-card glass" @click="goRoom(r.id)">
           <div class="live-card__cover">
-            <div class="live-card__cover-inner" :style="{ background: r.color }">
+            <div class="live-card__cover-inner" :style="{ background: r.coverColor }">
               <span class="live-card__live"><span class="dot" /> LIVE</span>
               <span class="live-card__viewers"><span class="num">{{ r.viewers }}</span> 观看</span>
             </div>
           </div>
           <div class="live-card__body">
             <h3 class="ellipsis">{{ r.title }}</h3>
-            <p>主播 · {{ r.anchor }}</p>
+            <p>主播 · {{ r.anchorName }}</p>
           </div>
         </article>
+        <p v-if="rooms.length === 0" style="text-align:center;color:var(--text-dim);padding:32px;">暂无直播中的房间</p>
       </div>
     </section>
 
@@ -46,18 +47,29 @@
 </template>
 
 <script setup>
-import { reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { liveApi } from '@/api/live'
 import ComingSoon from '@/components/base/ComingSoon.vue'
 
 const router = useRouter()
 
-const rooms = [
-  { id: 1, title: '深夜数码秒杀局', anchor: 'NeonAnchor', viewers: 12800, color: 'linear-gradient(135deg,#6b4dff,#00e5ff)' },
-  { id: 2, title: '美妆最后一小时', anchor: 'GlowQueen', viewers: 8630, color: 'linear-gradient(135deg,#ff4d8d,#ff8a00)' },
-  { id: 3, title: '零食清仓大放送', anchor: 'SnackKing', viewers: 5210, color: 'linear-gradient(135deg,#52e5a4,#4cc9f0)' },
-  { id: 4, title: '潮鞋限量首发', anchor: 'SneakerX', viewers: 21400, color: 'linear-gradient(135deg,#8a63ff,#ff7ad9)' },
-]
+const rooms = ref([])
+
+async function loadRooms() {
+  try {
+    const list = await liveApi.listRooms()
+    rooms.value = list.map(r => ({
+      id: r.id,
+      title: r.title,
+      anchorName: r.anchorName,
+      viewers: r.onlineCount || 0,
+      coverColor: r.coverColor || 'linear-gradient(135deg,#6b4dff,#00e5ff)',
+    }))
+  } catch {
+    rooms.value = []
+  }
+}
 
 const cd = reactive({ h: '02', m: '18', s: '42' })
 let timer = null
@@ -71,7 +83,7 @@ function tick() {
   cd.m = String(m).padStart(2, '0')
   cd.s = String(s).padStart(2, '0')
 }
-onMounted(() => { timer = setInterval(tick, 1000) })
+onMounted(() => { timer = setInterval(tick, 1000); loadRooms() })
 onBeforeUnmount(() => clearInterval(timer))
 
 function goRoom(id) { router.push(`/live/${id}`) }

@@ -6,7 +6,7 @@
       <div class="room__title">
         <span class="live-dot anim-breathe" /> 直播中
         <span class="room__name">{{ room.title }}</span>
-        <span class="room__anchor">· {{ room.anchor }}</span>
+        <span class="room__anchor">· {{ room.anchorName }}</span>
       </div>
       <div class="room__meta">
         <span class="conn" :class="`conn--${live.status}`" :title="connTitle">{{ connLabel }}</span>
@@ -21,18 +21,29 @@
       <!-- 左：视频 + 秒杀卡 -->
       <section class="col col--left">
         <div class="player">
-          <div class="player__inner" :style="{ background: room.color }">
-            <div class="player__perspective" aria-hidden="true">
-              <div class="player__grid" />
-              <div class="player__floor" />
-            </div>
-            <div class="player__scan" aria-hidden="true" />
-            <div class="player__vignette" aria-hidden="true" />
-            <div class="player__center">
-              <div class="player__pulse" />
-              <div class="player__hint">LIVE · 推流占位</div>
-              <div class="player__quality">
-                <span class="player__quality-dot" /> 1080P · 60fps
+          <div class="player__inner">
+            <!-- 视频播放 — 加载失败时自动降级到 CSS 动画 -->
+            <video
+              v-if="videoReady"
+              ref="videoRef"
+              class="player__video"
+              :src="VIDEO_SRC"
+              autoplay muted loop playsinline
+              @error="onVideoError"
+            />
+            <div v-if="!videoReady" class="player__fallback">
+              <div class="player__perspective" aria-hidden="true">
+                <div class="player__grid" />
+                <div class="player__floor" />
+              </div>
+              <div class="player__scan" aria-hidden="true" />
+              <div class="player__vignette" aria-hidden="true" />
+              <div class="player__center">
+                <div class="player__pulse" />
+                <div class="player__hint">LIVE · 视频素材加载中</div>
+                <div class="player__quality">
+                  <span class="player__quality-dot" /> 1080P · 60fps
+                </div>
               </div>
             </div>
             <BarrageTrack class="player__barrage" :messages="live.barrage" :lanes="5" />
@@ -170,6 +181,7 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { liveApi } from '@/api/live'
 import { useLiveStore } from '@/stores/live'
 import { orderStore } from '@/stores/order'
 import { showToast } from '@/utils/toast'
@@ -188,14 +200,48 @@ const route = useRoute()
 const router = useRouter()
 const live = useLiveStore()
 
-// —— 房间信息（mock；后端就绪后改为 liveApi） ——
-const ROOMS = {
-  1: { title: '深夜数码秒杀局', anchor: 'NeonAnchor', color: 'linear-gradient(135deg,#1a1240,#0a2233)' },
-  2: { title: '美妆最后一小时', anchor: 'GlowQueen', color: 'linear-gradient(135deg,#3a0d2a,#2a1a0d)' },
-  3: { title: '零食清仓大放送', anchor: 'SnackKing', color: 'linear-gradient(135deg,#0d3a2a,#1a2a0d)' },
-  4: { title: '潮鞋限量首发', anchor: 'SneakerX', color: 'linear-gradient(135deg,#2a0d3a,#0d1a3a)' },
+// —— 视频播放 ——
+const videoRef = ref(null)
+const videoReady = ref(false)
+const VIDEO_SRC = '/demo.mp4'
+let localStream = null
+
+async function tryLoadVideo() {
+  console.log('[LiveRoom] tryLoadVideo 开始, mediaDevices=', !!navigator.mediaDevices)
+  // 优先：摄像头作为直播画面
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 },
+      audio: false,
+    })
+    if (videoRef.value) videoRef.value.srcObject = localStream
+    videoReady.value = true
+    console.log('[LiveRoom] 摄像头已就绪')
+    return
+  } catch (e) {
+    console.warn('[LiveRoom] 摄像头不可用:', e.name, e.message)
+    // 常见原因：NotAllowedError(未授权) / NotFoundError(无摄像头) / NotReadableError(被占用)
+  }
+
+  // 降级：探测 demo.mp4
+  try {
+    const r = await fetch(VIDEO_SRC, { method: 'HEAD' })
+    if (r.ok) videoReady.value = true
+  } catch { /* 保持 CSS 降级 */ }
 }
-const room = computed(() => ROOMS[route.params.roomId] || { title: '直播间', anchor: '主播', color: '#12132a' })
+
+// —— 房间信息 ——
+const room = reactive({ title: '直播间', anchorName: '主播', coverColor: '#12132a' })
+async function loadRoomInfo() {
+  try {
+    const r = await liveApi.getRoom(Number(route.params.roomId))
+    Object.assign(room, {
+      title: r.title,
+      anchorName: r.anchorName,
+      coverColor: r.coverColor || '#12132a',
+    })
+  } catch { /* 保持默认 */ }
+}
 
 // —— 活动（mock，待对接 seckillApi） ——
 const activityStartAt = ref(Date.now() + 8000) // 8s 后开抢，便于演示 pending→running
@@ -375,10 +421,17 @@ function onKickClose() {
 const COLORS = ['#8a63ff', '#00e5ff', '#ff7ad9', '#52e5a4', '#ffcb55', '#4cc9f0']
 function pickColor(id) { return COLORS[Math.abs(id) % COLORS.length] || '#e5e6f0' }
 
+function onVideoError() {
+  videoReady.value = false
+}
+
 onMounted(() => {
+  loadRoomInfo()
+  tryLoadVideo()
   live.join(Number(route.params.roomId) || 1)
 })
 onBeforeUnmount(() => {
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null }
   live.leave()
 })
 </script>
@@ -435,7 +488,13 @@ onBeforeUnmount(() => {
 
 /* —— 左：视频（透视化） —— */
 .player { position: relative; aspect-ratio: 16/9; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border-soft); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
-.player__inner { position: relative; width: 100%; height: 100%; }
+.player__inner { position: relative; width: 100%; height: 100%; background: #050617; }
+.player__video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.player__fallback { position: absolute; inset: 0; }
 
 /* 透视层：网格 + 地平线地板 */
 .player__perspective {
