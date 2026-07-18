@@ -80,6 +80,10 @@ dubbo:
   provider:
     loadbalance: roundrobin
 
+# ====== JWT（需与 Gateway/User 一致） ======
+jwt:
+  secret: ${JWT_SECRET:bGl2ZW1hbGwtZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTEyMzQ1Njc4OTA=}
+
 # ====== 节点 ID（ws:route 跨节点路由标识） ======
 ws:
   node-id: ${HOSTNAME:node-1}
