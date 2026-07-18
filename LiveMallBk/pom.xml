@@ -18,7 +18,7 @@
     <description>LiveMall — 直播电商秒杀系统父工程</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
 
         <!-- ====== 核心框架 ====== -->
         <spring-boot.version>3.2.7</spring-boot.version>
@@ -108,25 +108,7 @@
         <pluginManagement>
             <plugins>
 
-                <!--可编译预览API-ScopedValue-->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <configuration>
-                        <compilerArgs>
-                            <arg>--enable-preview</arg>
-                        </compilerArgs>
-                    </configuration>
-                </plugin>
-
-                <!--可测试预览API-ScopedValue-->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <configuration>
-                        <argLine>--enable-preview</argLine>
-                    </configuration>
-                </plugin>
+                <!-- JDK 25: ScopedValue 已正式发布，不再需要 enable-preview 编译参数 -->
             </plugins>
         </pluginManagement>
         <plugins>

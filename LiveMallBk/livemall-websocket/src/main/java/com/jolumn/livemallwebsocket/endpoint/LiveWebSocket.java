@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 @Component
 @ServerEndpoint("/ws/live/{roomId}")
@@ -21,6 +22,7 @@ public class LiveWebSocket {
 
     private static final Logger log = LoggerFactory.getLogger(LiveWebSocket.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Semaphore BROADCAST_SEM = new Semaphore(200);
 
     private static WsSessionManager sessionManager;
     private static JwtUtil jwtUtil;
@@ -174,7 +176,19 @@ public class LiveWebSocket {
 
     private void broadcastToRoom(Long roomId, Map<String, Object> message) {
         for (WsSession ws : sessionManager.getRoomSessions(roomId)) {
-            sendJson(ws.getSession(), message);
+            try {
+                BROADCAST_SEM.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                continue;
+            }
+            Thread.startVirtualThread(() -> {
+                try {
+                    sendJson(ws.getSession(), message);
+                } finally {
+                    BROADCAST_SEM.release();
+                }
+            });
         }
     }
 

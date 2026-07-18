@@ -9,12 +9,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 @DubboService
 @Component
 public class WsPushServiceImpl implements WsPushService {
 
     private static final Logger log = LoggerFactory.getLogger(WsPushServiceImpl.class);
+    private static final Semaphore PUSH_SEM = new Semaphore(200);
 
     private final WsSessionManager sessionManager;
 
@@ -35,7 +37,19 @@ public class WsPushServiceImpl implements WsPushService {
         var sessions = sessionManager.getRoomSessions(roomId);
         if (sessions.isEmpty()) return false;
         for (WsSession ws : sessions) {
-            sendRaw(ws, message);
+            try {
+                PUSH_SEM.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                continue;
+            }
+            Thread.startVirtualThread(() -> {
+                try {
+                    sendRaw(ws, message);
+                } finally {
+                    PUSH_SEM.release();
+                }
+            });
         }
         return true;
     }
