@@ -1,6 +1,7 @@
 package com.jolumn.livemallwebsocket.endpoint;
 
 import tools.jackson.databind.ObjectMapper;
+import com.jolumn.livemallcommon.api.LeaderboardService;
 import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemallwebsocket.manager.WsSessionManager;
 import com.jolumn.livemallwebsocket.model.WsSession;
@@ -26,6 +27,7 @@ public class LiveWebSocket {
 
     private static WsSessionManager sessionManager;
     private static JwtUtil jwtUtil;
+    private static LeaderboardService leaderboardService;
     private static long maxSessions = 200_000;
 
     @OnOpen
@@ -177,6 +179,17 @@ public class LiveWebSocket {
                         "timestamp", System.currentTimeMillis()));
 
         broadcastToRoom(ws.getRoomId(), broadcast);
+
+        // Dubbo 调用排行榜加分
+        if (leaderboardService != null) {
+            Thread.startVirtualThread(() -> {
+                try {
+                    leaderboardService.addScore(ws.getRoomId(), ws.getUserId(), "GIFT");
+                } catch (Exception e) {
+                    log.warn("排行榜加分失败: userId={}", ws.getUserId(), e);
+                }
+            });
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -254,5 +267,10 @@ public class LiveWebSocket {
     @org.springframework.beans.factory.annotation.Value("${ws.max-sessions:200000}")
     public void setMaxSessions(long maxSessions) {
         LiveWebSocket.maxSessions = maxSessions;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setLeaderboardService(LeaderboardService leaderboardService) {
+        LiveWebSocket.leaderboardService = leaderboardService;
     }
 }
