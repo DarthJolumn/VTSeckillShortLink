@@ -1,6 +1,6 @@
 package com.jolumn.livemallcommon.util;
 
-import tools.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,7 @@ public class IdempotencyService {
         }
         try {
             return objectMapper.readValue(json, type);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("idempotency key {} 反序列化失败", key, e);
             return null;
         }
@@ -46,7 +46,7 @@ public class IdempotencyService {
         try {
             String json = objectMapper.writeValueAsString(value);
             redisTemplate.opsForValue().set(PREFIX + key, json, ttl, unit);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("idempotency key {} 序列化失败", key, e);
         }
     }

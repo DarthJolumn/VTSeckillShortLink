@@ -26,7 +26,7 @@
         <!-- ====== Gateway（WebFlux，不引入 spring-boot-starter-web） ====== -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway</artifactId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
             <!-- 排除 spring-boot-starter-web 的传递依赖，避免冲突 -->
 
         </dependency>

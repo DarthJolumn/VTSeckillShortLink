@@ -107,8 +107,15 @@
     <build>
         <pluginManagement>
             <plugins>
-
-                <!-- JDK 25: ScopedValue 已正式发布，不再需要 enable-preview 编译参数 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <compilerArgs>
+                            <arg>-proc:full</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
