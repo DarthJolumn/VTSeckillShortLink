@@ -73,17 +73,17 @@ public class SeckillController {
 
         String result = seckillService.placeOrder(activityId, userId, orderNo);
 
-        // Lua 扣减成功 → 同步发 Kafka（3s 超时），失败则回补库存
+        // Lua 扣减成功 → 发 Kafka（异步），失败则降级同步创建订单
         if ("ok".equals(result)) {
             String msg = userId + ":" + activityId + ":" + orderNo;
             try {
                 kafkaTemplate.send("seckill-order", msg)
                         .get(3, TimeUnit.SECONDS);
             } catch (Exception e) {
-                log.warn("Kafka 发送失败, 回补库存: activityId={}, userId={}", activityId, userId);
-                int shard = (int) (userId % stockService.getShardCount());
-                stockService.refund(activityId, userId, shard);
-                throw new BizException(500, "系统繁忙，请稍后重试");
+                // Kafka 不通时降级：同步创建订单（订单立即可查，但无削峰）
+                log.warn("Kafka 不可用, 降级同步创建订单: activityId={}, userId={}", activityId, userId);
+                SeckillActivity activity = seckillService.getActivity(activityId);
+                seckillService.createOrder(activity, userId, orderNo);
             }
         }
         return Result.ok(java.util.Map.of("result", result, "orderNo", orderNo));
