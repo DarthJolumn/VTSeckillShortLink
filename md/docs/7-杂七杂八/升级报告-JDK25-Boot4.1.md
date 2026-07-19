@@ -467,3 +467,24 @@ public class SecurityConfig {
     }
 }
 ```
+
+
+---
+
+### 4.8 Spring Cloud Gateway 5.0 路由配置路径变更 ⚠️ 运行时陷阱
+
+| 项目 | 说明 |
+|---|---|
+| 版本 | Spring Cloud 2025.1.2 → Gateway 5.0.2 |
+| 旧路径 | `spring.cloud.gateway.routes`（4.x 及以前） |
+| 新路径 | `spring.cloud.gateway.server.webflux.routes`（5.0+） |
+| 症状 | 用旧路径不报错、不加载路由，所有请求返回 `No static resource xxx` |
+| 修复 | 将 `application.yml` 中路由迁移到 `spring.cloud.gateway.server.webflux.routes` 下 |
+
+```yaml
+# 旧写法（4.x）
+spring.cloud.gateway.routes[0].uri=lb://livemall-user
+
+# 新写法（5.0+）
+spring.cloud.gateway.server.webflux.routes[0].uri=lb://livemall-user
+```

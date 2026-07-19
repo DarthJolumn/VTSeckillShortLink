@@ -30,38 +30,40 @@ spring:
         namespace:   # 公共命名空间
         group: DEFAULT_GROUP
 
-    # ====== Gateway 路由 ======
+    # ====== Gateway 路由（Spring Cloud Gateway 5.0 新路径：server.webflux.routes） ======
     gateway:
-      routes:
-        # ---------- 用户服务 ----------
-        - id: user-service
-          uri: lb://livemall-user
-          predicates:
-            - Path=/auth/**,/user/**
+      server:
+        webflux:
+          routes:
+            # ---------- 用户服务 ----------
+            - id: user-service
+              uri: lb://livemall-user
+              predicates:
+                - Path=/auth/**,/user/**
 
-        # ---------- 秒杀服务 ----------
-        - id: seckill-service
-          uri: lb://livemall-seckill
-          predicates:
-            - Path=/seckill/**
+            # ---------- 秒杀服务 ----------
+            - id: seckill-service
+              uri: lb://livemall-seckill
+              predicates:
+                - Path=/seckill/**
 
-        # ---------- 排行榜服务 ----------
-        - id: leaderboard-service
-          uri: lb://livemall-leaderboard
-          predicates:
-            - Path=/leaderboard/**
+            # ---------- 排行榜服务 ----------
+            - id: leaderboard-service
+              uri: lb://livemall-leaderboard
+              predicates:
+                - Path=/leaderboard/**
 
-        # ---------- 直播间 REST 接口（开播/关播/房间信息） → websocket 服务 ----------
-        - id: live-service
-          uri: lb://livemall-websocket
-          predicates:
-            - Path=/live/**
+            # ---------- 直播间 REST 接口（开播/关播/房间信息） → websocket 服务 ----------
+            - id: live-service
+              uri: lb://livemall-websocket
+              predicates:
+                - Path=/live/**
 
-        # ---------- WebSocket 长连接 ----------
-        - id: websocket-service
-          uri: lb:ws://livemall-websocket
-          predicates:
-            - Path=/ws/**
+            # ---------- WebSocket 长连接 ----------
+            - id: websocket-service
+              uri: lb:ws://livemall-websocket
+              predicates:
+                - Path=/ws/**
 
 # ====== 可观测性 ======
 management:
