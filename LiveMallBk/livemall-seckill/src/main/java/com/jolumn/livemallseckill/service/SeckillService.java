@@ -43,6 +43,24 @@ public class SeckillService {
         return activityRepo.save(activity);
     }
 
+    /** 查询活动详情 */
+    public SeckillActivity getActivity(Long activityId) {
+        return activityRepo.findById(activityId)
+                .orElseThrow(() -> new BizException(404, "活动不存在"));
+    }
+
+    /** 更新活动状态（0:待开始 1:进行中 2:已结束 3:已取消） */
+    @Transactional
+    public void updateStatus(Long activityId, Integer status) {
+        SeckillActivity activity = activityRepo.findById(activityId)
+                .orElseThrow(() -> new BizException(404, "活动不存在"));
+        if (status < 0 || status > 3) {
+            throw new BizException(400, "状态值必须在 0~3 之间");
+        }
+        activity.setStatus(status);
+        activityRepo.save(activity);
+    }
+
     /** 抢购下单 */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
         SeckillActivity activity = activityRepo.findById(activityId)

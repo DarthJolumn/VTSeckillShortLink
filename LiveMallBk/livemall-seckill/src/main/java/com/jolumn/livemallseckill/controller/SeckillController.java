@@ -9,6 +9,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -30,12 +31,17 @@ public class SeckillController {
         return Result.ok(seckillService.createActivity(activity));
     }
 
+    /** 更新活动状态（上架 1 / 下架 2） */
+    @PutMapping("/activity/{id}/status")
+    public Result<Void> updateStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        seckillService.updateStatus(id, body.get("status"));
+        return Result.ok();
+    }
+
     /** 活动详情 */
     @GetMapping("/activity/{id}")
     public Result<SeckillActivity> activityDetail(@PathVariable Long id) {
-        return Result.ok(seckillService.getActiveActivities().stream()
-                .filter(a -> a.getId().equals(id)).findFirst()
-                .orElseThrow(() -> new com.jolumn.livemallcommon.exception.BizException(404, "活动不存在")));
+        return Result.ok(seckillService.getActivity(id));
     }
 
     /** 活动列表 */
