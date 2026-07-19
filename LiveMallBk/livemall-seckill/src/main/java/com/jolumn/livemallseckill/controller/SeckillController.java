@@ -55,10 +55,10 @@ public class SeckillController {
         return Result.ok(seckillService.getActivity(id));
     }
 
-    /** 活动列表 */
+    /** 活动列表（可选 roomId 过滤） */
     @GetMapping("/activity/list")
-    public Result<List<SeckillActivity>> activityList() {
-        return Result.ok(seckillService.getActiveActivities());
+    public Result<List<SeckillActivity>> activityList(@RequestParam(required = false) Long roomId) {
+        return Result.ok(seckillService.getActivities(roomId));
     }
 
     /** 抢购下单 → 返回 {result, orderNo} 供前端匹配 WS SEC_KILL_RESULT */

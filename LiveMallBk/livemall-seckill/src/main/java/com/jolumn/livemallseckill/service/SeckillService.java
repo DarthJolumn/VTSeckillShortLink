@@ -145,6 +145,14 @@ public class SeckillService {
         orderRepo.save(order);
     }
 
+    /** 查询活动列表（可选 roomId 过滤） */
+    public List<SeckillActivity> getActivities(Long roomId) {
+        if (roomId != null) {
+            return activityRepo.findByRoomIdAndStatusOrderByStartTimeAsc(roomId, 1);
+        }
+        return activityRepo.findByStatusOrderByStartTimeAsc(1);
+    }
+
     /** 查询进行中的活动 */
     public List<SeckillActivity> getActiveActivities() {
         return activityRepo.findByStatusOrderByStartTimeAsc(1);

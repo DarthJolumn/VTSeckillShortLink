@@ -36,6 +36,9 @@ public class SeckillActivity {
     @Column(nullable = false)
     private Integer status;  // 0:待开始 1:进行中 2:已结束 3:已取消
 
+    @Column(name = "room_id")
+    private Long roomId;     // 关联直播间
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -71,6 +74,8 @@ public class SeckillActivity {
     public void setEndTime(LocalDateTime time) { this.endTime = time; }
     public Integer getStatus() { return status; }
     public void setStatus(Integer status) { this.status = status; }
+    public Long getRoomId() { return roomId; }
+    public void setRoomId(Long roomId) { this.roomId = roomId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

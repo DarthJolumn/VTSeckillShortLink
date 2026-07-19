@@ -9,5 +9,7 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
 
     List<SeckillActivity> findByStatusOrderByStartTimeAsc(Integer status);
 
+    List<SeckillActivity> findByRoomIdAndStatusOrderByStartTimeAsc(Long roomId, Integer status);
+
     List<SeckillActivity> findByStatusAndEndTimeBefore(Integer status, java.time.LocalDateTime time);
 }

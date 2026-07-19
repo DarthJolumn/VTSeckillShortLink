@@ -36,6 +36,7 @@ public class CreateActivityRequest {
     private Long endAt;             // 前端 endAt (epoch ms) → 实体 endTime (LocalDateTime)
 
     private Long productId;         // 商品 ID（可选）
+    private Long roomId;            // 关联直播间（可选）
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -51,6 +52,8 @@ public class CreateActivityRequest {
     public void setEndAt(Long endAt) { this.endAt = endAt; }
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
+    public Long getRoomId() { return roomId; }
+    public void setRoomId(Long roomId) { this.roomId = roomId; }
 
     /** 转换为 SeckillActivity 实体 */
     public com.jolumn.livemallseckill.entity.SeckillActivity toEntity() {
@@ -65,6 +68,9 @@ public class CreateActivityRequest {
         entity.setStatus(0); // 待开始
         if (this.productId != null) {
             entity.setProductId(this.productId);
+        }
+        if (this.roomId != null) {
+            entity.setRoomId(this.roomId);
         }
         return entity;
     }
