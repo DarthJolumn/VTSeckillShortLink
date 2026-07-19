@@ -2,6 +2,7 @@ package com.jolumn.livemallseckill.controller;
 
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.exception.BizException;
+import com.jolumn.livemallcommon.util.SnowflakeIdGenerator;
 import com.jolumn.livemallseckill.dto.CreateActivityRequest;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.entity.SeckillOrder;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -27,13 +27,16 @@ public class SeckillController {
     private final SeckillService seckillService;
     private final StockService stockService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final SnowflakeIdGenerator idGenerator;
 
     public SeckillController(SeckillService seckillService,
                              StockService stockService,
-                             KafkaTemplate<String, String> kafkaTemplate) {
+                             KafkaTemplate<String, String> kafkaTemplate,
+                             SnowflakeIdGenerator idGenerator) {
         this.seckillService = seckillService;
         this.stockService = stockService;
         this.kafkaTemplate = kafkaTemplate;
+        this.idGenerator = idGenerator;
     }
 
     /** 创建秒杀活动（管理员）— 前端字段名 name/price/origPrice/stockTotal/startAt/endAt(ms) */
@@ -66,7 +69,7 @@ public class SeckillController {
     public Result<java.util.Map<String, Object>> placeOrder(@RequestBody java.util.Map<String, Long> body,
                                      @RequestHeader("X-User-Id") Long userId) {
         Long activityId = body.get("activityId");
-        String orderNo = String.valueOf(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
+        String orderNo = idGenerator.nextOrderNo();
 
         String result = seckillService.placeOrder(activityId, userId, orderNo);
 
