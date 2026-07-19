@@ -4,7 +4,12 @@
 server:
   port: 8083
 
+# ====== gRPC Server ======
 spring:
+  grpc:
+    server:
+      port: 9090
+
   application:
     name: livemall-websocket
 

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package livemall.seckill;
+
+option java_package = "com.jolumn.livemallcommon.grpc";
+option java_multiple_files = false;
+
+// 秒杀结果推送服务 — gRPC 通道
+// Seckill 服务消费 Kafka 订单后，通过此接口推送结果到 WebSocket 服务
+service SeckillPush {
+  rpc PushResult (SeckillPushRequest) returns (SeckillPushResponse);
+}
+
+message SeckillPushRequest {
+  int64 user_id = 1;
+  string order_no = 2;
+  bool success = 3;
+  string message = 4;
+  int64 timestamp = 5;
+}
+
+message SeckillPushResponse {
+  bool delivered = 1;
+  string reason = 2;
+}

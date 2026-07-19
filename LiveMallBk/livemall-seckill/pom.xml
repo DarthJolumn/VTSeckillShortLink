@@ -54,6 +54,12 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
+        <!-- ====== gRPC Client ====== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-grpc-client</artifactId>
+        </dependency>
+
         <!-- ====== Redis + Caffeine ====== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
