@@ -116,16 +116,17 @@
                         </compilerArgs>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <skip>false</skip>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip><!-- 父工程不打 jar -->
-                </configuration>
-            </plugin>
+            <!-- spring-boot-maven-plugin 配置在 pluginManagement 中，子模块按需继承 -->
         </plugins>
     </build>
 
