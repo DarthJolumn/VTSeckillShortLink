@@ -239,7 +239,13 @@ public class UserService {
         if (removed == 0) {
             throw new BizException(404, "设备不在线");
         }
-        wsPushService.kickDevice(userId, deviceId);
+        try {
+            wsPushService.kickDevice(userId, deviceId);
+        } catch (Exception e) {
+            // Dubbo 调用失败: Redis 已删 session, WS 推送降级
+            // 设备下次请求时 token 已失效, 自然下线
+            log.warn("踢设备推送失败(已清除Redis): userId={}, deviceId={}", userId, deviceId, e);
+        }
     }
 
     public User findById(Long userId) {

@@ -24,9 +24,15 @@ public class IdempotencyService {
     }
 
     public boolean tryAcquire(String key) {
-        return Boolean.TRUE.equals(
-                redisTemplate.opsForValue()
-                        .setIfAbsent(PREFIX + key, "1", 5, TimeUnit.MINUTES));
+        try {
+            return Boolean.TRUE.equals(
+                    redisTemplate.opsForValue()
+                            .setIfAbsent(PREFIX + key, "1", 5, TimeUnit.MINUTES));
+        } catch (Exception e) {
+            // Redis 不可用时降级：放行请求，失去幂等保护但不阻断业务
+            log.warn("幂等检查失败(Redis不可用), 降级放行: key={}", key, e);
+            return true;
+        }
     }
 
     public <T> T get(String key, Class<T> type) {
@@ -48,6 +54,9 @@ public class IdempotencyService {
             redisTemplate.opsForValue().set(PREFIX + key, json, ttl, unit);
         } catch (JacksonException e) {
             log.error("idempotency key {} 序列化失败", key, e);
+        } catch (Exception e) {
+            // Redis 不可用时降级：缓存写入失败不影响主流程
+            log.warn("幂等缓存写入失败(Redis不可用): key={}", key, e);
         }
     }
 }

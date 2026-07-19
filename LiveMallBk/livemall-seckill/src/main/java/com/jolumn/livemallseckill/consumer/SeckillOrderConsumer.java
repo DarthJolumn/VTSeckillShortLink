@@ -8,6 +8,8 @@ import com.jolumn.livemallseckill.service.SeckillService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -70,6 +72,12 @@ public class SeckillOrderConsumer {
                 }
 
                 ack.acknowledge();
+            } catch (DuplicateKeyException e) {
+                log.warn("重复订单（幂等兜底）: orderNo={}", e.getMessage());
+                ack.acknowledge(); // 不可重试，直接 ack 跳过
+            } catch (DataAccessException e) {
+                log.error("DB 不可用, 暂停消费等待重试: {}", e.getMessage());
+                // 不 ack → Kafka 重试（配合 seek 回到当前 offset）
             } catch (Exception e) {
                 log.error("订单消费异常", e);
                 ack.acknowledge();
