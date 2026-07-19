@@ -1,11 +1,11 @@
 <template>
-  <div class="console" :class="{ 'is-live': live, 'is-vertical': layout === 'vertical' }">
+  <div class="console" :class="{ 'is-live': liveFlag, 'is-vertical': layout === 'vertical' }">
     <!-- ====== 顶部状态条 ====== -->
     <header class="console__bar">
       <div class="bar__left">
-        <span class="status-dot" :class="live ? 'status-dot--live' : 'status-dot--idle'" />
-        <span class="bar__status-text">{{ live ? '直播中' : '未开播' }}</span>
-        <span v-if="live" class="bar__elapsed num">{{ elapsedLabel }}</span>
+        <span class="status-dot" :class="liveFlag ? 'status-dot--live' : 'status-dot--idle'" />
+        <span class="bar__status-text">{{ liveFlag ? '直播中' : '未开播' }}</span>
+        <span v-if="liveFlag" class="bar__elapsed num">{{ elapsedLabel }}</span>
       </div>
       <div class="bar__center">
         <span class="bar__metric"><span class="bar__metric-label">在线</span><NumberFlip :value="roomOnline" /></span>
@@ -16,7 +16,7 @@
         <button class="bar__layout-btn" @click="layout = layout === 'default' ? 'vertical' : 'default'" title="切换布局">
           {{ layout === 'default' ? '⬛' : '⬜' }}
         </button>
-        <NeonButton v-if="!live" variant="seckill" @click="onStart">开始直播</NeonButton>
+        <NeonButton v-if="!liveFlag" variant="seckill" @click="onStart">开始直播</NeonButton>
         <NeonButton v-else variant="ghost" @click="onStop">结束直播</NeonButton>
       </div>
     </header>
@@ -26,12 +26,12 @@
       <!-- 左：视频 + 秒杀卡 -->
       <section class="col col--main">
         <!-- 视频区 -->
-        <div class="player" :class="{ 'is-live': live }">
+        <div class="player" :class="{ 'is-live': liveFlag }">
           <video v-if="camera.stream.value" ref="videoRef" autoplay muted playsinline class="player__video" />
           <div v-else class="player__placeholder">
             <div class="player__placeholder-glow" />
-            <span class="player__placeholder-icon">{{ live ? '📡' : '🎥' }}</span>
-            <p>{{ live ? '推流中…' : '点击「开始直播」' }}</p>
+            <span class="player__placeholder-icon">{{ liveFlag ? '📡' : '🎥' }}</span>
+            <p>{{ liveFlag ? '推流中…' : '点击「开始直播」' }}</p>
           </div>
 
           <!-- 弹幕浮层（可关闭） -->
@@ -43,7 +43,7 @@
           />
 
           <!-- 左上角标 -->
-          <div v-if="live" class="player__badges">
+          <div v-if="liveFlag" class="player__badges">
             <span class="player__badge player__badge--live"><i class="dot" /> LIVE</span>
             <span class="player__badge" @click="showBarrage = !showBarrage" style="cursor:pointer">
               {{ showBarrage ? '💬 弹幕开' : '💬 弹幕关' }}
@@ -51,7 +51,7 @@
           </div>
 
           <!-- 右下控制浮层 -->
-          <div v-if="live" class="player__ctrls">
+          <div v-if="liveFlag" class="player__ctrls">
             <button class="ctrl-btn" :class="{ 'is-off': !micOn }" @click="onToggleMic" :title="micOn ? '麦克风开' : '已静音'">
               {{ micOn ? '🎙️' : '🔇' }}
             </button>
@@ -158,7 +158,7 @@
     <!-- ====== 底部：推流信息 + 设置折叠 ====== -->
     <footer class="console__foot">
       <div class="foot__info">
-        <span class="foot__info-item">推流: {{ live ? 'rtmp://push.livemall.cn/live/' + roomId : '—' }}</span>
+        <span class="foot__info-item">推流: {{ liveFlag ? 'rtmp://push.livemall.cn/live/' + roomId : '—' }}</span>
         <span class="foot__info-item">码率: {{ bitRateLabel }}</span>
         <span class="foot__info-item">编码: H.264/AAC</span>
       </div>
@@ -173,18 +173,18 @@
         <div class="settings__grid">
           <label class="s-field">
             <span>直播标题</span>
-            <input v-model.trim="form.title" type="text" maxlength="40" :disabled="live" placeholder="深夜数码秒杀局" />
+            <input v-model.trim="form.title" type="text" maxlength="40" :disabled="liveFlag" placeholder="深夜数码秒杀局" />
           </label>
           <label class="s-field">
             <span>分类</span>
-            <select v-model="form.category" :disabled="live">
+            <select v-model="form.category" :disabled="liveFlag">
               <option value="digital">数码</option><option value="beauty">美妆</option>
               <option value="food">食品</option><option value="fashion">服饰</option><option value="other">其他</option>
             </select>
           </label>
           <label class="s-field">
             <span>清晰度</span>
-            <select v-model="form.quality" :disabled="live">
+            <select v-model="form.quality" :disabled="liveFlag">
               <option value="720">720P</option><option value="1080">1080P</option><option value="1440">1440P</option>
             </select>
           </label>
@@ -198,7 +198,7 @@
         </div>
         <div class="settings__toggles">
           <label class="toggle"><input v-model="showBarrage" type="checkbox" /><span>视频弹幕浮层</span></label>
-          <label class="toggle"><input v-model="form.openGift" type="checkbox" :disabled="live" /><span>开启礼物</span></label>
+          <label class="toggle"><input v-model="form.openGift" type="checkbox" :disabled="liveFlag" /><span>开启礼物</span></label>
         </div>
       </div>
     </transition>
@@ -258,6 +258,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { liveApi } from '@/api/live'
 import { seckillApi } from '@/api/seckill'
@@ -280,6 +281,7 @@ const COVER_COLORS = [
 ]
 
 // —— 布局 ——
+const router = useRouter()
 const layout = ref('default') // default | vertical
 
 // —— 摄像头 ——
@@ -355,13 +357,20 @@ async function onStart() {
 
 function onStop() {
   if (!confirm('确定结束本次直播？')) return
-  if (roomId.value) liveApi.stopRoom(roomId.value).catch(() => {})
+  if (roomId.value) {
+    liveApi.stopRoom(roomId.value).catch((e) => {
+      showToast('关播请求失败：' + (e?.message || '网络异常'), 'danger')
+    })
+  }
   camera.close()
   liveFlag.value = false
   live.leave()
   stopStatsTimer()
   showToast(`本场结束 · ${elapsedLabel.value} · 收益 ¥${stats.revenue.toFixed(2)}`, 'success')
   Object.assign(stats, { online: 0, peak: 0, barrage: 0, gift: 0, likes: 0, revenue: 0, totalView: 0 })
+  roomId.value = ''
+  // 跳回首页
+  router.replace('/')
 }
 
 function onToggleMic() {
@@ -558,21 +567,28 @@ async function copyLink() {
 async function restoreIfLive() {
   try {
     const room = await liveApi.getMyActive()
-    if (room && room.status === 1) {
-      roomId.value = room.id
-      liveFlag.value = true
-      startedAt.value = room.startedAt ? new Date(room.startedAt).getTime() : Date.now()
-      form.title = room.title || ''
-      form.category = room.category || 'digital'
-      live.join(room.id)
-      startStatsTimer()
-      await camera.open({ video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value })
-      if (camera.stream.value) {
-        requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = camera.stream.value })
-      }
-      showToast('已恢复直播', 'info')
+    if (!room || room.status !== 1) return
+    // 防止恢复僵尸房间：开播超过 24 小时的不恢复（上次关播失败残留的旧记录）
+    const startedMs = room.startedAt ? new Date(room.startedAt).getTime() : 0
+    const stale = Date.now() - startedMs > 24 * 3600 * 1000
+    if (stale) {
+      // 旧房间残留，清理掉（尽力而为，失败则下次再试）
+      liveApi.stopRoom(room.id).catch(() => {})
+      return
     }
-  } catch { /* 后端未就绪 */ }
+    roomId.value = room.id
+    liveFlag.value = true
+    startedAt.value = startedMs || Date.now()
+    form.title = room.title || ''
+    form.category = room.category || 'digital'
+    live.join(room.id)
+    startStatsTimer()
+    await camera.open({ video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value })
+    if (camera.stream.value) {
+      requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = camera.stream.value })
+    }
+    showToast('已恢复直播', 'info')
+  } catch { /* 后端未就绪，跳过恢复 */ }
 }
 
 onMounted(() => { restoreIfLive() })

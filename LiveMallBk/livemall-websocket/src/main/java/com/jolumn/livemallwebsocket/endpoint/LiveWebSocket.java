@@ -32,7 +32,9 @@ public class LiveWebSocket {
 
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
-        String token = extractTokenFromQuery(session.getQueryString());
+        String query = session.getQueryString();
+        String token = extractParamFromQuery(query, "token");
+        String deviceId = extractParamFromQuery(query, "deviceId");
         Long userId = null;
         Integer role = null;
 
@@ -40,7 +42,8 @@ public class LiveWebSocket {
             try {
                 Claims claims = jwtUtil.parse(token);
                 userId = Long.parseLong(claims.getSubject());
-                role = claims.get("role", Integer.class);
+                // JJWT + Gson 解析时数字会变成 Double，无法直接转 Integer，需通过 Number 中转
+                role = ((Number) claims.get("role")).intValue();
             } catch (Exception e) {
                 log.warn("WS 握手验签失败，降级为匿名: {}", e.getMessage());
                 sendJson(session, Map.of("type", "AUTH_FAILED", "data",
@@ -59,7 +62,7 @@ public class LiveWebSocket {
             return;
         }
 
-        WsSession ws = new WsSession(session, roomId, userId, role);
+        WsSession ws = new WsSession(session, roomId, userId, role, deviceId);
         sessionManager.add(ws);
         session.getUserProperties().put("sessionId", ws.getSessionId());
 
@@ -132,7 +135,8 @@ public class LiveWebSocket {
         try {
             Claims claims = jwtUtil.parse(token);
             Long userId = Long.parseLong(claims.getSubject());
-            Integer role = claims.get("role", Integer.class);
+            // JJWT + Gson 解析时数字会变成 Double，无法直接转 Integer，需通过 Number 中转
+            Integer role = ((Number) claims.get("role")).intValue();
             ws.upgrade(userId, role);
             log.info("WS 连接升级: session={}, userId={}", ws.getSessionId(), userId);
             sendJson(session, Map.of("type", "AUTH_OK", "data",
@@ -240,11 +244,11 @@ public class LiveWebSocket {
         log.error("WS 错误: session={}, error={}", sessionId, error.getMessage());
     }
 
-    private String extractTokenFromQuery(String query) {
+    private String extractParamFromQuery(String query, String name) {
         if (query == null || query.isBlank()) return null;
         for (String pair : query.split("&")) {
             String[] kv = pair.split("=", 2);
-            if (kv.length == 2 && "token".equals(kv[0])) {
+            if (kv.length == 2 && name.equals(kv[0])) {
                 return kv[1];
             }
         }

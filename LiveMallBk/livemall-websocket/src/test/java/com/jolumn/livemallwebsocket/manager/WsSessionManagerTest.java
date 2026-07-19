@@ -99,12 +99,12 @@ class WsSessionManagerTest {
         WsSession ws = mockSession(1L, 100L);
         manager.add(ws);
 
-        assertThat(manager.findByUserId(100L)).isSameAs(ws);
+        assertThat(manager.findByUserId(100L)).contains(ws);
     }
 
     @Test
-    void findByUserId_notFound_returnsNull() {
-        assertThat(manager.findByUserId(999L)).isNull();
+    void findByUserId_notFound_returnsEmpty() {
+        assertThat(manager.findByUserId(999L)).isEmpty();
     }
 
     @Test
@@ -112,7 +112,7 @@ class WsSessionManagerTest {
         WsSession anon = mockSession(1L, null);
         manager.add(anon);
 
-        assertThat(manager.findByUserId(100L)).isNull();
+        assertThat(manager.findByUserId(100L)).isEmpty();
     }
 
     // ── totalOnline ──
@@ -199,6 +199,6 @@ class WsSessionManagerTest {
                 .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
         when(raw.getAsyncRemote()).thenReturn(async);
 
-        return new WsSession(raw, roomId, userId, userId != null ? 1 : null);
+        return new WsSession(raw, roomId, userId, userId != null ? 1 : null, "test-device");
     }
 }

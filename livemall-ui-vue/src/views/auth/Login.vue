@@ -106,7 +106,7 @@ const rippling = ref(false)
 
 const HOME_BY_ROLE = {
   [ROLE.AUDIENCE]: '/',
-  [ROLE.ANCHOR]: '/anchor/stream',
+  [ROLE.ANCHOR]: '/',
   [ROLE.ADMIN]: '/admin/dashboard',
 }
 

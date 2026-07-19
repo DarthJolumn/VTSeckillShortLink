@@ -18,13 +18,19 @@ public class WsSessionManager {
 
     private final Map<String, WsSession> sessions = new ConcurrentHashMap<>();
     private final Map<Long, Map<String, WsSession>> roomSessions = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> deviceSessions = new ConcurrentHashMap<>(); // "userId:deviceId" → Set<sessionId>
 
     public void add(WsSession ws) {
         sessions.put(ws.getSessionId(), ws);
         roomSessions.computeIfAbsent(ws.getRoomId(), k -> new ConcurrentHashMap<>())
                 .put(ws.getSessionId(), ws);
-        log.debug("Session 加入: id={}, room={}, anonymous={}, online={}",
-                ws.getSessionId(), ws.getRoomId(), ws.isAnonymous(), getRoomOnline(ws.getRoomId()));
+        if (ws.getUserId() != null && ws.getDeviceId() != null) {
+            String key = ws.getUserId() + ":" + ws.getDeviceId();
+            deviceSessions.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
+                    .add(ws.getSessionId());
+        }
+        log.debug("Session 加入: id={}, room={}, userId={}, device={}, online={}",
+                ws.getSessionId(), ws.getRoomId(), ws.getUserId(), ws.getDeviceId(), getRoomOnline(ws.getRoomId()));
     }
 
     public WsSession remove(String sessionId) {
@@ -34,6 +40,14 @@ public class WsSessionManager {
             if (room != null) {
                 room.remove(sessionId);
                 if (room.isEmpty()) roomSessions.remove(ws.getRoomId());
+            }
+            if (ws.getUserId() != null && ws.getDeviceId() != null) {
+                String key = ws.getUserId() + ":" + ws.getDeviceId();
+                Set<String> set = deviceSessions.get(key);
+                if (set != null) {
+                    set.remove(sessionId);
+                    if (set.isEmpty()) deviceSessions.remove(key);
+                }
             }
             log.debug("Session 移除: id={}, room={}, online={}",
                     sessionId, ws.getRoomId(), getRoomOnline(ws.getRoomId()));
@@ -59,13 +73,22 @@ public class WsSessionManager {
         return room != null ? room.size() : 0;
     }
 
-    public WsSession findByUserId(Long userId) {
-        for (WsSession ws : sessions.values()) {
-            if (userId.equals(ws.getUserId())) {
-                return ws;
-            }
-        }
-        return null;
+    /** 查找用户的所有会话（同账号可多个设备/多房间/多tab） */
+    public Collection<WsSession> findByUserId(Long userId) {
+        return sessions.values().stream()
+                .filter(ws -> userId.equals(ws.getUserId()))
+                .toList();
+    }
+
+    /** 查找用户+设备的所有会话（踢设备时精确关闭） */
+    public Collection<WsSession> findByUserIdAndDeviceId(Long userId, String deviceId) {
+        String key = userId + ":" + deviceId;
+        Set<String> sessionIds = deviceSessions.get(key);
+        if (sessionIds == null || sessionIds.isEmpty()) return Set.of();
+        return sessionIds.stream()
+                .map(sessions::get)
+                .filter(ws -> ws != null)
+                .toList();
     }
 
     public int totalOnline() {

@@ -3,6 +3,8 @@ package com.jolumn.livemallwebsocket.push;
 import com.jolumn.livemallcommon.api.WsPushService;
 import com.jolumn.livemallwebsocket.manager.WsSessionManager;
 import com.jolumn.livemallwebsocket.model.WsSession;
+
+import java.util.Collection;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,9 +28,9 @@ public class WsPushServiceImpl implements WsPushService {
 
     @Override
     public boolean push(Long userId, String message) {
-        WsSession ws = sessionManager.findByUserId(userId);
-        if (ws == null) return false;
-        sendRaw(ws, message);
+        Collection<WsSession> sessions = sessionManager.findByUserId(userId);
+        if (sessions.isEmpty()) return false;
+        sessions.forEach(ws -> sendRaw(ws, message));
         return true;
     }
 
@@ -56,17 +58,20 @@ public class WsPushServiceImpl implements WsPushService {
 
     @Override
     public boolean kickUser(Long userId, String reason) {
-        WsSession ws = sessionManager.findByUserId(userId);
-        if (ws == null) return false;
-        kick(ws, reason);
+        Collection<WsSession> sessions = sessionManager.findByUserId(userId);
+        if (sessions.isEmpty()) return false;
+        sessions.forEach(ws -> kick(ws, reason));
         return true;
     }
 
     @Override
     public boolean kickDevice(Long userId, String deviceId) {
-        // 当前无 ws:route 设备粒度路由，退化为踢该用户所有 session
-        // 与 kickUser 行为一致。后续 ws:route 引入 deviceId 维度后再做设备级精确踢
-        return kickUser(userId, "DEVICE_KICKED");
+        Collection<WsSession> sessions = sessionManager.findByUserIdAndDeviceId(userId, deviceId);
+        if (sessions.isEmpty()) return false;
+        for (WsSession ws : sessions) {
+            kick(ws, "DEVICE_KICKED");
+        }
+        return true;
     }
 
     private void kick(WsSession ws, String reason) {

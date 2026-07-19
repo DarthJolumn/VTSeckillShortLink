@@ -8,7 +8,7 @@
 // 由 ws-mock.js 模拟服务端推送，便于无后端演示。
 
 import { WS_HEARTBEAT_MS, WS_PONG_TIMEOUT_MS, WS_RECONNECT_MAX, WS_TYPE } from '@/constants'
-import { tokens } from './auth'
+import { tokens, device } from './auth'
 
 export const WS_STATUS = Object.freeze({
   IDLE: 'idle',
@@ -56,6 +56,11 @@ export class WsClient {
     let url = `${base}/ws/live/${this.roomId}`
     if (token) {
       url += `?token=${encodeURIComponent(token)}`
+    }
+    // 传 deviceId 使 WS 服务能精确定位设备连接（踢设备用）
+    const did = device.get()
+    if (did) {
+      url += (url.includes('?') ? '&' : '?') + `deviceId=${encodeURIComponent(did)}`
     }
     try {
       this._ws = new WebSocket(url)

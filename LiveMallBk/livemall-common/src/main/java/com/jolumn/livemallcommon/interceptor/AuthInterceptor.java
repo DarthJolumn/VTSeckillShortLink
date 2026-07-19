@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -20,6 +21,12 @@ import java.util.Arrays;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AuthInterceptor implements HandlerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(AuthInterceptor.class);
+
+    private final StringRedisTemplate redisTemplate;
+
+    public AuthInterceptor(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request,
@@ -37,10 +44,21 @@ public class AuthInterceptor implements HandlerInterceptor {
         Long userId = userIdStr != null ? Long.parseLong(userIdStr) : null;
         Integer role = request.getHeader("X-User-Role") != null
                 ? Integer.parseInt(request.getHeader("X-User-Role")) : null;
+        String deviceId = request.getHeader("X-Device-Id");
 
         if ((requireAuth != null || requireRole != null) && userId == null) {
             sendUnauthorized(response, "请先登录");
             return false;
+        }
+
+        // 设备在线检查：被踢设备即使 JWT 未过期也拒绝访问
+        if (userId != null && deviceId != null && !deviceId.isBlank()) {
+            Boolean inSession = redisTemplate.opsForSet()
+                    .isMember("device_sessions:" + userId, deviceId);
+            if (Boolean.FALSE.equals(inSession)) {
+                sendUnauthorized(response, "设备已被踢下线");
+                return false;
+            }
         }
 
         if (requireRole != null) {

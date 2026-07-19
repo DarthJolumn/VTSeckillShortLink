@@ -79,7 +79,8 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         try {
             Claims claims = jwtUtil.parse(token);
             Long userId = Long.parseLong(claims.getSubject());
-            Integer role = claims.get("role", Integer.class);
+            // JJWT + Gson 解析时数字会变成 Double，无法直接转 Integer，需通过 Number 中转
+            Integer role = ((Number) claims.get("role")).intValue();
 
             exchange.getAttributes().put("userId", userId);
             exchange.getAttributes().put("role", role);

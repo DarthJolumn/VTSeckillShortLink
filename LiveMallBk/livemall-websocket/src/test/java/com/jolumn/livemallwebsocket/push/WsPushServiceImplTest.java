@@ -5,6 +5,7 @@ import com.jolumn.livemallwebsocket.model.WsSession;
 import jakarta.websocket.RemoteEndpoint;
 import jakarta.websocket.Session;
 import org.junit.jupiter.api.BeforeEach;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,7 +37,7 @@ class WsPushServiceImplTest {
     @Test
     void push_userFound_shouldSend() {
         WsSession ws = mockSession("s1", 1L, 100L);
-        when(sessionManager.findByUserId(100L)).thenReturn(ws);
+        when(sessionManager.findByUserId(100L)).thenReturn(List.of(ws));
 
         boolean result = service.push(100L, "hello");
 
@@ -48,7 +49,7 @@ class WsPushServiceImplTest {
 
     @Test
     void push_userNotFound_returnsFalse() {
-        when(sessionManager.findByUserId(999L)).thenReturn(null);
+        when(sessionManager.findByUserId(999L)).thenReturn(List.of());
 
         boolean result = service.push(999L, "hello");
 
@@ -86,7 +87,7 @@ class WsPushServiceImplTest {
     @Test
     void kickUser_userFound_shouldSendKickMessage() {
         WsSession ws = mockSession("s1", 1L, 100L);
-        when(sessionManager.findByUserId(100L)).thenReturn(ws);
+        when(sessionManager.findByUserId(100L)).thenReturn(List.of(ws));
 
         boolean result = service.kickUser(100L, "违规操作");
 
@@ -97,7 +98,7 @@ class WsPushServiceImplTest {
 
     @Test
     void kickUser_userNotFound_returnsFalse() {
-        when(sessionManager.findByUserId(999L)).thenReturn(null);
+        when(sessionManager.findByUserId(999L)).thenReturn(List.of());
 
         boolean result = service.kickUser(999L, "reason");
 
@@ -107,14 +108,13 @@ class WsPushServiceImplTest {
     // ── kickDevice ──
 
     @Test
-    void kickDevice_delegatesToKickUser() {
+    void kickDevice_kicksAllSessionsForDevice() {
         WsSession ws = mockSession("s1", 1L, 100L);
-        when(sessionManager.findByUserId(100L)).thenReturn(ws);
+        when(sessionManager.findByUserIdAndDeviceId(100L, "device-1")).thenReturn(List.of(ws));
 
         boolean result = service.kickDevice(100L, "device-1");
 
         assert result;
-        // kickDevice 退化为 kickUser(userId, "DEVICE_KICKED")
         verify(ws.getSession().getAsyncRemote()).sendText(anyString());
     }
 
@@ -130,6 +130,6 @@ class WsPushServiceImplTest {
                 .thenReturn(java.util.concurrent.CompletableFuture.completedFuture(null));
         when(raw.getAsyncRemote()).thenReturn(async);
 
-        return new WsSession(raw, roomId, userId, userId != null ? 1 : null);
+        return new WsSession(raw, roomId, userId, userId != null ? 1 : null, "test-device");
     }
 }
