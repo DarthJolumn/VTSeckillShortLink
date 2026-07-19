@@ -6,15 +6,16 @@ import com.jolumn.livemallcommon.util.IdempotencyService;
 import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemalluser.dto.LoginResponse;
 import com.jolumn.livemalluser.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockitoBean;
-import org.springframework.context.annotation.Import;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -24,25 +25,30 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)
-@Import(GlobalExceptionHandler.class)
+@ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private UserService userService;
 
-    @MockitoBean
+    @Mock
     private IdempotencyService idempotencyService;
 
-    @MockitoBean
+    @Mock
     private JwtUtil jwtUtil;
+
+    @BeforeEach
+    void setUp() {
+        AuthController controller = new AuthController(userService, idempotencyService, jwtUtil);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
 
     @Test
     void register_ok() throws Exception {
-        when(idempotencyService.tryAcquire(anyString())).thenReturn(true);
         when(userService.preRegister(anyString())).thenReturn("$2a$10$xxxx");
         doNothing().when(userService).register(any(), anyString());
 

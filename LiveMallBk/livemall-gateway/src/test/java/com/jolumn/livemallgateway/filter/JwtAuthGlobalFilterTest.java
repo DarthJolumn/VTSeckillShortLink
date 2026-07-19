@@ -38,7 +38,7 @@ class JwtAuthGlobalFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new JwtAuthGlobalFilter(jwtUtil);
+        filter = new JwtAuthGlobalFilter(jwtUtil, "/auth/login,/auth/register,/auth/refresh", "");
     }
 
     @Test

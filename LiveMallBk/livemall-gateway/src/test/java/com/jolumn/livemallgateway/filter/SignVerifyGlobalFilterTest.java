@@ -85,7 +85,7 @@ class SignVerifyGlobalFilterTest {
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        when(valueOperations.setIfAbsent(eq("nonce:reused-nonce"), eq("1"), any()))
+        when(valueOperations.setIfAbsent(eq("nonce:reused-nonce"), eq("1"), any(java.time.Duration.class)))
                 .thenReturn(Mono.just(false));
 
         StepVerifier.create(filter.filter(exchange, chain))
@@ -108,7 +108,7 @@ class SignVerifyGlobalFilterTest {
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        when(valueOperations.setIfAbsent(eq("nonce:test-nonce"), eq("1"), any()))
+        when(valueOperations.setIfAbsent(eq("nonce:test-nonce"), eq("1"), any(java.time.Duration.class)))
                 .thenReturn(Mono.just(true));
 
         StepVerifier.create(filter.filter(exchange, chain))
@@ -136,7 +136,7 @@ class SignVerifyGlobalFilterTest {
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        when(valueOperations.setIfAbsent(eq("nonce:" + nonce), eq("1"), any()))
+        when(valueOperations.setIfAbsent(eq("nonce:" + nonce), eq("1"), any(java.time.Duration.class)))
                 .thenReturn(Mono.just(true));
 
         StepVerifier.create(filter.filter(exchange, chain))
@@ -159,7 +159,7 @@ class SignVerifyGlobalFilterTest {
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        when(valueOperations.setIfAbsent(eq("nonce:test-nonce"), eq("1"), any()))
+        when(valueOperations.setIfAbsent(eq("nonce:test-nonce"), eq("1"), any(java.time.Duration.class)))
                 .thenReturn(Mono.just(true));
 
         StepVerifier.create(filter.filter(exchange, chain))
