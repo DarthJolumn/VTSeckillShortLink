@@ -21,6 +21,8 @@ public class StockService {
     private final DefaultRedisScript<Long> refundScript;
     private final int shardCount;
 
+    public int getShardCount() { return shardCount; }
+
     public StockService(StringRedisTemplate redisTemplate,
                         @Value("${seckill.shard-count:4}") int shardCount) {
         this.redisTemplate = redisTemplate;

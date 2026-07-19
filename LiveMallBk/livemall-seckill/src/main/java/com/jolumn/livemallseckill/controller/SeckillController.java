@@ -1,27 +1,37 @@
 package com.jolumn.livemallseckill.controller;
 
 import com.jolumn.livemallcommon.dto.Result;
+import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.entity.SeckillOrder;
 import com.jolumn.livemallseckill.service.SeckillService;
+import com.jolumn.livemallseckill.service.StockService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/seckill")
 public class SeckillController {
 
+    private static final Logger log = LoggerFactory.getLogger(SeckillController.class);
+
     private final SeckillService seckillService;
+    private final StockService stockService;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     public SeckillController(SeckillService seckillService,
+                             StockService stockService,
                              KafkaTemplate<String, String> kafkaTemplate) {
         this.seckillService = seckillService;
+        this.stockService = stockService;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -59,10 +69,18 @@ public class SeckillController {
 
         String result = seckillService.placeOrder(activityId, userId, orderNo);
 
-        // Lua 扣减成功 → 发 Kafka 异步创建订单
+        // Lua 扣减成功 → 同步发 Kafka（3s 超时），失败则回补库存
         if ("ok".equals(result)) {
             String msg = userId + ":" + activityId + ":" + orderNo;
-            kafkaTemplate.send("seckill-order", msg);
+            try {
+                kafkaTemplate.send("seckill-order", msg)
+                        .get(3, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.warn("Kafka 发送失败, 回补库存: activityId={}, userId={}", activityId, userId);
+                int shard = (int) (userId % stockService.getShardCount());
+                stockService.refund(activityId, userId, shard);
+                throw new BizException(500, "系统繁忙，请稍后重试");
+            }
         }
         return Result.ok(result);
     }
