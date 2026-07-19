@@ -73,13 +73,13 @@ spring:
       eager: true
       transport:
         dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
-      datasource:
-        ds1:
-          nacos:
-            server-addr: ${NACOS_ADDR:192.168.147.132:8848}
-            dataId: livemall-seckill-rules.json
-            groupId: DEFAULT_GROUP
-            rule-type: flow
+#      datasource:
+#        ds1:
+#          nacos:
+#            server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+#            dataId: livemall-seckill-rules.json
+#            groupId: DEFAULT_GROUP
+#            rule-type: flow
 
   # ====== 优雅停机 ======
   lifecycle:

@@ -1,6 +1,7 @@
 package com.jolumn.livemallseckill.config;
 
-import com.jolumn.livemallcommon.grpc.SeckillPushGrpc;
+import com.jolumn.livemallcommon.grpc
+        .SeckillPushGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.springframework.beans.factory.annotation.Value;
