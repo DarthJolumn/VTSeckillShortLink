@@ -47,7 +47,7 @@ public class StockService {
         List<String> keys = List.of(stockKey, orderedKey);
 
         Long result = redisTemplate.execute(deductScript, keys,
-                userId.toString(), String.valueOf(shardCount));
+                userId.toString(), String.valueOf(shardCount), String.valueOf(activityId));
 
         int code = result != null ? result.intValue() : -2;
         if (code == 200) {
@@ -56,8 +56,14 @@ public class StockService {
         return code;
     }
 
+    /** 回补库存（自动计算分片） */
+    public void refund(Long activityId, Long userId) {
+        int shard = (int) (userId % shardCount);
+        refund(activityId, userId, shard);
+    }
+
     /**
-     * 回补库存（超时取消/退款时调用）
+     * 回补库存（超时取消/退款时调用，指定分片）
      */
     public void refund(Long activityId, Long userId, int shard) {
         String stockKey = "stock:shard:" + activityId + ":" + shard;

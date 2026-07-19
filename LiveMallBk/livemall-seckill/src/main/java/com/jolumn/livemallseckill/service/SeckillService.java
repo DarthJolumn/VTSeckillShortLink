@@ -125,8 +125,7 @@ public class SeckillService {
         order.setCancelledAt(LocalDateTime.now());
         orderRepo.save(order);
 
-        int shard = (int) (userId % 4L);
-        stockService.refund(order.getActivityId(), userId, shard);
+        stockService.refund(order.getActivityId(), userId);
     }
 
     /** 退款 */

@@ -43,8 +43,7 @@ public class TimeoutCancelScheduler {
                     // 乐观锁 CAS：version 匹配才更新
                     SeckillOrder saved = orderRepo.save(order);
                     if (saved.getVersion() == currentVersion + 1) {
-                        int shard = (int) (order.getUserId() % 4L);
-                        stockService.refund(order.getActivityId(), order.getUserId(), shard);
+                            stockService.refund(order.getActivityId(), order.getUserId());
                         log.info("超时取消订单成功: orderNo={}", order.getOrderNo());
                     }
                 } catch (Exception e) {
