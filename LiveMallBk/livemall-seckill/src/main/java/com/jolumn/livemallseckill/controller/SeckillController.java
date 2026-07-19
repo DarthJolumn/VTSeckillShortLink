@@ -11,6 +11,7 @@ import com.jolumn.livemallseckill.service.StockService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,17 +26,13 @@ public class SeckillController {
     private static final Logger log = LoggerFactory.getLogger(SeckillController.class);
 
     private final SeckillService seckillService;
-    private final StockService stockService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
     private final SnowflakeIdGenerator idGenerator;
+    @Autowired private StockService stockService;
+    @Autowired(required = false) private KafkaTemplate<String, String> kafkaTemplate;
 
     public SeckillController(SeckillService seckillService,
-                             StockService stockService,
-                             KafkaTemplate<String, String> kafkaTemplate,
                              SnowflakeIdGenerator idGenerator) {
         this.seckillService = seckillService;
-        this.stockService = stockService;
-        this.kafkaTemplate = kafkaTemplate;
         this.idGenerator = idGenerator;
     }
 
@@ -73,15 +70,19 @@ public class SeckillController {
 
         String result = seckillService.placeOrder(activityId, userId, orderNo);
 
-        // Lua 扣减成功 → 发 Kafka（异步），失败则降级同步创建订单
+        // Lua 扣减成功 → 发 Kafka（异步），Kafka 不可用时降级同步创建订单
         if ("ok".equals(result)) {
-            String msg = userId + ":" + activityId + ":" + orderNo;
-            try {
-                kafkaTemplate.send("seckill-order", msg)
-                        .get(3, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                // Kafka 不通时降级：同步创建订单（订单立即可查，但无削峰）
-                log.warn("Kafka 不可用, 降级同步创建订单: activityId={}, userId={}", activityId, userId);
+            if (kafkaTemplate != null) {
+                String msg = userId + ":" + activityId + ":" + orderNo;
+                try {
+                    kafkaTemplate.send("seckill-order", msg).get(3, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.warn("Kafka 不可用, 降级同步创建订单: activityId={}, userId={}", activityId, userId);
+                    SeckillActivity activity = seckillService.getActivity(activityId);
+                    seckillService.createOrder(activity, userId, orderNo);
+                }
+            } else {
+                // 无 Kafka bean，直接同步创建订单
                 SeckillActivity activity = seckillService.getActivity(activityId);
                 seckillService.createOrder(activity, userId, orderNo);
             }
