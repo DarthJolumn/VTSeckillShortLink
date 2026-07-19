@@ -27,7 +27,6 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
-            <!-- 排除 spring-boot-starter-web 的传递依赖，避免冲突 -->
 
         </dependency>
 
@@ -65,6 +64,13 @@
             <groupId>com.alibaba.csp</groupId>
             <artifactId>sentinel-datasource-extension</artifactId>
             <version>1.8.9</version>
+        </dependency>
+
+        <!-- ====== gRPC Netty（Gateway 不直接使用，但 Dubbo 反射扫描 GrpcSslConfigurer 需要） ====== -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- ====== 可观测 ====== -->
