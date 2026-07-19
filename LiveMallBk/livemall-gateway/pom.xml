@@ -21,6 +21,14 @@
             <groupId>com.jolumn</groupId>
             <artifactId>livemall-common</artifactId>
             <version>${project.version}</version>
+            <!-- 排除 webmvc：Gateway 必须是纯 WebFlux，MVC DispatcherServlet 会
+                 抢在 Gateway Route 之前处理请求，导致 "No static resource" 错误 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-webmvc</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- ====== Gateway（WebFlux，不引入 spring-boot-starter-web） ====== -->

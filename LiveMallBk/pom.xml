@@ -27,6 +27,7 @@
 
         <!-- ====== RPC ====== -->
         <dubbo.version>3.3.6</dubbo.version>
+        <sentinel.version>1.8.9</sentinel.version>
 
         <!-- ====== 消息 ====== -->
         <kafka.version>3.6.1</kafka.version>
@@ -62,6 +63,13 @@
                 <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- SCA 2025.1.0.0 自动配置 NacosDataSource 但没带 sentinel-datasource-nacos -->
+            <dependency>
+                <groupId>com.alibaba.csp</groupId>
+                <artifactId>sentinel-datasource-nacos</artifactId>
+                <version>${sentinel.version}</version>
             </dependency>
 
             <!-- Dubbo -->
