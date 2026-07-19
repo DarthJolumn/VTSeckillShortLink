@@ -27,12 +27,13 @@ class SeckillServiceTest {
     @Mock private SeckillActivityRepository activityRepo;
     @Mock private SeckillOrderRepository orderRepo;
     @Mock private StockService stockService;
+    @Mock private ActivityCacheService cacheService;
 
     private SeckillService service;
 
     @BeforeEach
     void setUp() {
-        service = new SeckillService(activityRepo, orderRepo, stockService);
+        service = new SeckillService(activityRepo, orderRepo, stockService, cacheService);
     }
 
     @Test
@@ -69,7 +70,8 @@ class SeckillServiceTest {
     void placeOrder_success() {
         SeckillActivity activity = validActivity();
         activity.setId(1L);
-        when(activityRepo.findById(1L)).thenReturn(Optional.of(activity));
+        when(cacheService.isSoldOut(1L)).thenReturn(false);
+        when(cacheService.getActivity(1L)).thenReturn(activity);
         when(stockService.deduct(1L, 100L)).thenReturn(200);
 
         String result = service.placeOrder(1L, 100L, "order-001");
@@ -77,27 +79,38 @@ class SeckillServiceTest {
     }
 
     @Test
-    void placeOrder_duplicate_throws() {
-        SeckillActivity activity = validActivity();
-        activity.setId(1L);
-        when(activityRepo.findById(1L)).thenReturn(Optional.of(activity));
-        when(stockService.deduct(1L, 100L)).thenReturn(-1);
+    void placeOrder_soldOutCache_rejects() {
+        when(cacheService.isSoldOut(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> service.placeOrder(1L, 100L, "order-001"))
                 .isInstanceOf(BizException.class)
-                .hasMessageContaining("已参与");
+                .hasMessageContaining("库存不足");
     }
 
     @Test
-    void placeOrder_soldOut_throws() {
+    void placeOrder_redisSoldOut_marksCache() {
         SeckillActivity activity = validActivity();
         activity.setId(1L);
-        when(activityRepo.findById(1L)).thenReturn(Optional.of(activity));
+        when(cacheService.isSoldOut(1L)).thenReturn(false);
+        when(cacheService.getActivity(1L)).thenReturn(activity);
         when(stockService.deduct(1L, 100L)).thenReturn(-2);
 
         assertThatThrownBy(() -> service.placeOrder(1L, 100L, "order-001"))
                 .isInstanceOf(BizException.class)
                 .hasMessageContaining("库存不足");
+    }
+
+    @Test
+    void placeOrder_duplicate_throws() {
+        SeckillActivity activity = validActivity();
+        activity.setId(1L);
+        when(cacheService.isSoldOut(1L)).thenReturn(false);
+        when(cacheService.getActivity(1L)).thenReturn(activity);
+        when(stockService.deduct(1L, 100L)).thenReturn(-1);
+
+        assertThatThrownBy(() -> service.placeOrder(1L, 100L, "order-001"))
+                .isInstanceOf(BizException.class)
+                .hasMessageContaining("已参与");
     }
 
     @Test

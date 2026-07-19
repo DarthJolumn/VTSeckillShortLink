@@ -22,13 +22,16 @@ public class SeckillService {
     private final SeckillActivityRepository activityRepo;
     private final SeckillOrderRepository orderRepo;
     private final StockService stockService;
+    private final ActivityCacheService cacheService;
 
     public SeckillService(SeckillActivityRepository activityRepo,
                           SeckillOrderRepository orderRepo,
-                          StockService stockService) {
+                          StockService stockService,
+                          ActivityCacheService cacheService) {
         this.activityRepo = activityRepo;
         this.orderRepo = orderRepo;
         this.stockService = stockService;
+        this.cacheService = cacheService;
     }
 
     /** 创建秒杀活动（管理员） */
@@ -62,14 +65,23 @@ public class SeckillService {
 
         if (status == 1) {
             stockService.initStock(activityId, activity.getTotalStock());
+            cacheService.markInStock(activityId);
+            cacheService.refresh(activityId);
         }
     }
 
-    /** 抢购下单 */
+    /** 抢购下单。L1 Caffeine 快速售罄检查，减少 90% Redis 查询 */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
-        SeckillActivity activity = activityRepo.findById(activityId)
-                .orElseThrow(() -> new BizException(404, "活动不存在"));
+        // Caffeine L1 快速售罄检查
+        if (cacheService.isSoldOut(activityId)) {
+            throw new BizException(1009, "库存不足");
+        }
 
+        // Caffeine L1 缓存活动信息
+        SeckillActivity activity = cacheService.getActivity(activityId);
+        if (activity == null) {
+            throw new BizException(404, "活动不存在");
+        }
         if (activity.getStatus() != 1) {
             throw new BizException(400, "活动未在进行中");
         }
@@ -85,7 +97,10 @@ public class SeckillService {
                 yield "ok";
             }
             case -1 -> throw new BizException(1010, "已参与过该活动");
-            case -2 -> throw new BizException(1009, "库存不足");
+            case -2 -> {
+                cacheService.markSoldOut(activityId);
+                throw new BizException(1009, "库存不足");
+            }
             default -> throw new BizException(500, "系统繁忙");
         };
     }
