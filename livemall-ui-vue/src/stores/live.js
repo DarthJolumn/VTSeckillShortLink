@@ -9,11 +9,8 @@ import { watch } from 'vue'
 
 const BARRAGE_MAX = 80
 
-const USE_MOCK = import.meta.env.VITE_USE_WS_MOCK === '1' || !tokensExists()
-
-function tokensExists() {
-  try { return !!localStorage.getItem('lm_refresh') } catch { return false }
-}
+// 统一 Mock 开关：VITE_MOCK_MODE=1 时全前端模拟，不连后端 WS
+const USE_MOCK = import.meta.env.VITE_MOCK_MODE === '1'
 
 export const useLiveStore = defineStore('live', {
   state: () => ({

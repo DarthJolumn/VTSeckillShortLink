@@ -36,6 +36,7 @@ export class WsClient {
     this._reconnectCount = 0
     this._manualClose = false
     this._mockDriver = null
+    this._dedup = new Map()       // 上行消息去重缓存
   }
 
   get status() { return this._status }
@@ -152,6 +153,18 @@ export class WsClient {
 
   // —— 发送 ——
   send(type, data = {}) {
+    // 弹幕/送礼等上行消息去重：500ms 内相同 type + content/giftId + userId 视为重复
+    if (type === WS_TYPE.BARRAGE || type === WS_TYPE.GIFT) {
+      const dedupKey = `${type}:${data.content || data.giftId || ''}`
+      const last = this._dedup.get(dedupKey)
+      if (last && Date.now() - last < 500) return
+      this._dedup.set(dedupKey, Date.now())
+      // 清理超过 100 条的旧记录
+      if (this._dedup.size > 100) {
+        const cutoff = Date.now() - 5000
+        for (const [k, t] of this._dedup) { if (t < cutoff) this._dedup.delete(k) }
+      }
+    }
     const msg = {
       type,
       data,

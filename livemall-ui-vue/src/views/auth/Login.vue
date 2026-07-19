@@ -126,7 +126,8 @@ async function onSubmit() {
   }
 }
 
-// 演示登录：后端未就绪时本地写入 demo 凭据，直进直播间
+// 演示登录：Mock 模式（VITE_MOCK_MODE=1）下跳过后端，直进直播间
+// 通过 userStore 直接设置凭据，不走 authApi（后端未就绪时避免网络错误）
 async function demoLogin() {
   userStore.accessToken = 'demo-access'
   userStore.refreshToken = 'demo-refresh'
@@ -134,8 +135,8 @@ async function demoLogin() {
     id: 0, username: 'demo', nickname: '演示观众',
     avatar: '', role: ROLE.AUDIENCE, status: 1, phone: '',
   }
-  // 写入 storage 让 live store 的 mock 判定生效
-  localStorage.setItem('lm_refresh', 'demo-refresh')
+  // 写 sessionStorage 以便 request.js 拦截器读取 JWT
+  sessionStorage.setItem('lm_access', 'demo-access')
   localStorage.setItem('lm_user', JSON.stringify(userStore.userInfo))
   showToast('已进入演示模式', 'success')
   rippling.value = true

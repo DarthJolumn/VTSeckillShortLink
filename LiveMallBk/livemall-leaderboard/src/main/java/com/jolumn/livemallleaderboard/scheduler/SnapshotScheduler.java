@@ -6,12 +6,14 @@ import com.jolumn.livemallleaderboard.repository.LeaderboardSnapshotRepository;
 import com.jolumn.livemallleaderboard.service.LeaderboardServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class SnapshotScheduler {
@@ -20,35 +22,44 @@ public class SnapshotScheduler {
 
     private final LeaderboardServiceImpl leaderboardService;
     private final LeaderboardSnapshotRepository snapshotRepo;
+    private final StringRedisTemplate redisTemplate;
 
     public SnapshotScheduler(LeaderboardServiceImpl leaderboardService,
-                             LeaderboardSnapshotRepository snapshotRepo) {
+                             LeaderboardSnapshotRepository snapshotRepo,
+                             StringRedisTemplate redisTemplate) {
         this.leaderboardService = leaderboardService;
         this.snapshotRepo = snapshotRepo;
+        this.redisTemplate = redisTemplate;
     }
 
-    /** 每 5 分钟将 Top 100 落库 */
+    /** 每 5 分钟扫描所有 ZSet leaderboard:* 并落库 Top 100 */
     @Scheduled(cron = "0 */5 * * * ?")
     public void snapshot() {
         LocalDateTime now = LocalDateTime.now();
-        log.info("排行榜快照开始: {}", now);
+        Set<String> keys = redisTemplate.keys("leaderboard:*");
+        if (keys == null || keys.isEmpty()) return;
 
-        // 对所有活跃活动做快照（简化实现：遍历所有 ZSet key）
-        // 实际应从活动表查活跃活动ID列表
-        try {
-            List<RankEntry> top100 = leaderboardService.getTopN(1L, 100);
-            for (RankEntry entry : top100) {
-                LeaderboardSnapshot snap = new LeaderboardSnapshot();
-                snap.setActivityId(1L);
-                snap.setUserId(entry.getUserId());
-                snap.setScore(BigDecimal.valueOf(entry.getScore()));
-                snap.setRank(entry.getRank());
-                snap.setSnapshotTime(now);
-                snapshotRepo.save(snap);
+        int totalSaved = 0;
+        for (String key : keys) {
+            try {
+                String idStr = key.substring("leaderboard:".length());
+                Long activityId = Long.parseLong(idStr);
+                List<RankEntry> top100 = leaderboardService.getTopN(activityId, 100);
+
+                for (RankEntry entry : top100) {
+                    LeaderboardSnapshot snap = new LeaderboardSnapshot();
+                    snap.setActivityId(activityId);
+                    snap.setUserId(entry.getUserId());
+                    snap.setScore(BigDecimal.valueOf(entry.getScore()));
+                    snap.setRank(entry.getRank());
+                    snap.setSnapshotTime(now);
+                    snapshotRepo.save(snap);
+                }
+                totalSaved += top100.size();
+            } catch (Exception e) {
+                log.warn("快照失败: key={}, error={}", key, e.getMessage());
             }
-            log.info("排行榜快照完成: 保存 {} 条", top100.size());
-        } catch (Exception e) {
-            log.warn("排行榜快照失败: {}", e.getMessage());
         }
+        log.info("排行榜快照完成: {} 个活动, {} 条记录", keys.size(), totalSaved);
     }
 }
