@@ -3,15 +3,19 @@ package com.jolumn.livemalluser.controller;
 import com.jolumn.livemallcommon.annotation.RequireAuth;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemalluser.dto.DeviceInfo;
+import com.jolumn.livemalluser.dto.UpdatePasswordRequest;
+import com.jolumn.livemalluser.dto.UpdateProfileRequest;
 import com.jolumn.livemalluser.dto.UserProfileVO;
 import com.jolumn.livemalluser.entity.User;
 import com.jolumn.livemalluser.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/user")
@@ -66,6 +70,34 @@ public class UserController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable String deviceId) {
         userService.kickDevice(userId, deviceId);
+        return Result.ok();
+    }
+
+    @PutMapping("/profile")
+    @RequireAuth
+    public Result<UserProfileVO> updateProfile(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody UpdateProfileRequest request) {
+        userService.updateProfile(userId, request.getNickname(), request.getAvatar(), request.getPhone());
+        User user = userService.findById(userId);
+        return Result.ok(toProfileVO(user));
+    }
+
+    @PutMapping("/password")
+    @RequireAuth
+    public Result<Void> updatePassword(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody UpdatePasswordRequest request) {
+        userService.updatePassword(userId, request.getOldPassword(), request.getNewPassword());
+        return Result.ok();
+    }
+
+    @PutMapping("/ban/{userId}")
+    @RequireAuth
+    public Result<Void> banUser(
+            @PathVariable Long userId,
+            @RequestBody Map<String, Integer> body) {
+        userService.updateBanStatus(userId, body.get("status"));
         return Result.ok();
     }
 }

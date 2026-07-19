@@ -124,13 +124,14 @@ export function createMockDriver({ roomId, send }) {
     // 上行秒杀：随机延迟 + 概率扣库存，回送结果 + 库存同步
     if (msg.type === WS_TYPE.SEC_KILL) {
       const reqId = msg.messageId
+      const mockOrderNo = 'LM' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase()
       const latency = 800 + Math.random() * 600
       setTimeout(() => {
         // 库存为 0 直接失败
         if (stock <= 0) {
           send(WS_TYPE.SEC_KILL_RESULT, {
             ok: false, reason: 'soldout', message: '已售罄',
-            reqId, timestamp: Date.now(),
+            orderNo: null, reqId, timestamp: Date.now(),
           })
           return
         }
@@ -144,6 +145,7 @@ export function createMockDriver({ roomId, send }) {
           ok,
           reason: ok ? 'success' : 'slow',
           message: ok ? '抢购成功' : '手速慢了',
+          orderNo: ok ? mockOrderNo : null,
           reqId,
           timestamp: Date.now(),
         })

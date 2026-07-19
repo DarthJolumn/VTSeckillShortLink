@@ -23,6 +23,17 @@ public class StockService {
 
     public int getShardCount() { return shardCount; }
 
+    /** 初始化库存分片（活动上架时调用）。perShard = totalStock / shardCount，余数归 shard 0 */
+    public void initStock(Long activityId, int totalStock) {
+        int perShard = totalStock / shardCount;
+        int remainder = totalStock % shardCount;
+        for (int i = 0; i < shardCount; i++) {
+            int stock = perShard + (i == 0 ? remainder : 0);
+            redisTemplate.opsForValue().set("stock:shard:" + activityId + ":" + i, String.valueOf(stock));
+        }
+        log.info("库存初始化: activityId={}, total={}, perShard={}, remainder={}", activityId, totalStock, perShard, remainder);
+    }
+
     public StockService(StringRedisTemplate redisTemplate,
                         @Value("${seckill.shard-count:4}") int shardCount) {
         this.redisTemplate = redisTemplate;

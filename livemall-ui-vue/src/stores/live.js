@@ -26,7 +26,8 @@ export const useLiveStore = defineStore('live', {
     myRank: null,
     stock: 0,
     stockTotal: 0,
-    secKillResult: null,              // 最近一次抢购结果
+    secKillResult: null,              // 最近一次抢购结果（由 WS SEC_KILL_RESULT 推送）
+    pendingOrderNo: null,             // 等待 WS 推送的订单号
     kicked: null,                     // { reason }
     _client: null,
     _unsubs: [],
@@ -71,7 +72,13 @@ export const useLiveStore = defineStore('live', {
       sub(WS_TYPE.GIFT_DOWN, (d) => this.onGift(d))
       sub(WS_TYPE.ONLINE_COUNT, (d) => { this.online = d.count })
       sub('STOCK_UPDATE', (d) => { this.stock = d.stock; this.stockTotal = d.total })
-      sub(WS_TYPE.SEC_KILL_RESULT, (d) => { this.secKillResult = d })
+      sub(WS_TYPE.SEC_KILL_RESULT, (d) => {
+        // 按 orderNo 匹配（优先），fallback 到 reqId
+        if (this.pendingOrderNo && d.orderNo === this.pendingOrderNo) {
+          this.pendingOrderNo = null
+        }
+        this.secKillResult = d
+      })
       sub(WS_TYPE.KICK, (d) => { this.kicked = d || { reason: '同一账号在别处登录' } })
       sub(WS_TYPE.BAN, () => { this.kicked = { reason: '账号已被封禁', ban: true } })
       sub(WS_TYPE.ROOM_CLOSED, () => { this.kicked = { reason: '主播已下播', closed: true } })
@@ -132,6 +139,11 @@ export const useLiveStore = defineStore('live', {
       return reqId
     },
 
+    /** 设置等待 WS 推送的订单号（REST 下单成功后调用） */
+    expectOrderResult(orderNo) {
+      this.pendingOrderNo = orderNo
+    },
+
     leave() {
       this._unsubs.forEach((fn) => fn?.())
       this._unsubs = []
@@ -141,6 +153,7 @@ export const useLiveStore = defineStore('live', {
       this._client = null
       this.status = WS_STATUS.IDLE
       this.kicked = null
+      this.pendingOrderNo = null
     },
   },
 })

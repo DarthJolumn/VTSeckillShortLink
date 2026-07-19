@@ -2,6 +2,7 @@ package com.jolumn.livemallseckill.controller;
 
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.exception.BizException;
+import com.jolumn.livemallseckill.dto.CreateActivityRequest;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.entity.SeckillOrder;
 import com.jolumn.livemallseckill.service.SeckillService;
@@ -35,10 +36,10 @@ public class SeckillController {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    /** 创建秒杀活动（管理员） */
+    /** 创建秒杀活动（管理员）— 前端字段名 name/price/origPrice/stockTotal/startAt/endAt(ms) */
     @PostMapping("/activity")
-    public Result<SeckillActivity> createActivity(@Valid @RequestBody SeckillActivity activity) {
-        return Result.ok(seckillService.createActivity(activity));
+    public Result<SeckillActivity> createActivity(@Valid @RequestBody CreateActivityRequest request) {
+        return Result.ok(seckillService.createActivity(request.toEntity()));
     }
 
     /** 更新活动状态（上架 1 / 下架 2） */
@@ -60,9 +61,9 @@ public class SeckillController {
         return Result.ok(seckillService.getActiveActivities());
     }
 
-    /** 抢购下单 */
+    /** 抢购下单 → 返回 {result, orderNo} 供前端匹配 WS SEC_KILL_RESULT */
     @PostMapping("/order")
-    public Result<String> placeOrder(@RequestBody java.util.Map<String, Long> body,
+    public Result<java.util.Map<String, Object>> placeOrder(@RequestBody java.util.Map<String, Long> body,
                                      @RequestHeader("X-User-Id") Long userId) {
         Long activityId = body.get("activityId");
         String orderNo = String.valueOf(UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE);
@@ -82,7 +83,7 @@ public class SeckillController {
                 throw new BizException(500, "系统繁忙，请稍后重试");
             }
         }
-        return Result.ok(result);
+        return Result.ok(java.util.Map.of("result", result, "orderNo", orderNo));
     }
 
     /** 订单列表 */

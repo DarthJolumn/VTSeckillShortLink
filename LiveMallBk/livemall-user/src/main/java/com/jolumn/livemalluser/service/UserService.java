@@ -259,4 +259,48 @@ public class UserService {
         return userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, username));
     }
+
+    /** 更新个人资料（昵称/头像/手机号） */
+    @Transactional
+    public void updateProfile(Long userId, String nickname, String avatar, String phone) {
+        User user = findById(userId);
+        if (nickname != null && !nickname.isBlank()) {
+            user.setNickname(nickname.trim());
+        }
+        if (avatar != null) {
+            user.setAvatar(avatar);
+        }
+        if (phone != null && !phone.isBlank()) {
+            // 校验手机号唯一性
+            User exist = userMapper.selectOne(
+                    new LambdaQueryWrapper<User>().eq(User::getPhone, phone));
+            if (exist != null && !exist.getId().equals(userId)) {
+                throw new BizException(1014, "手机号已被使用");
+            }
+            user.setPhone(phone.trim());
+        }
+        userMapper.updateById(user);
+    }
+
+    /** 修改密码 */
+    @Transactional
+    public void updatePassword(Long userId, String oldPassword, String newPassword) {
+        User user = findById(userId);
+        if (!BCrypt.checkpw(oldPassword, user.getPassword())) {
+            throw new BizException(1010, "旧密码错误");
+        }
+        user.setPassword(BCrypt.hashpw(newPassword, BCrypt.gensalt(10)));
+        userMapper.updateById(user);
+    }
+
+    /** 封禁/解封用户 */
+    @Transactional
+    public void updateBanStatus(Long userId, Integer status) {
+        if (status != 0 && status != 1) {
+            throw new BizException(400, "状态值必须为 0（封禁）或 1（正常）");
+        }
+        User user = findById(userId);
+        user.setStatus(status);
+        userMapper.updateById(user);
+    }
 }

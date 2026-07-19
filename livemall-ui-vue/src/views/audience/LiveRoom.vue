@@ -182,6 +182,7 @@
 import { computed, onMounted, onBeforeUnmount, reactive, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { liveApi } from '@/api/live'
+import { seckillApi } from '@/api/seckill'
 import { useLiveStore } from '@/stores/live'
 import { orderStore } from '@/stores/order'
 import { showToast } from '@/utils/toast'
@@ -361,7 +362,6 @@ watch(() => live.giftFeed.length, () => {
 })
 
 // —— 秒杀 ——
-const pendingReqId = ref(null)
 async function onSeckill() {
   if (phase.value !== 'running') return
   if (ordering.value) return
@@ -371,24 +371,34 @@ async function onSeckill() {
   lastOrderAt.value = now
 
   ordering.value = true
-  // 通过 WS 上行 SEC_KILL，结果由 mock driver / 后端推回 live.secKillResult
-  const reqId = live.sendSeckill(activity.activityId ?? route.params.roomId)
-  if (!reqId) {
+  try {
+    const res = await seckillApi.placeOrder(activity.activityId ?? route.params.roomId)
+    // res = { result, orderNo }
+    if (res.result === 'ok') {
+      // Lua 扣减成功，等待 WS gRPC 推送 SEC_KILL_RESULT
+      live.expectOrderResult(res.orderNo)
+      // 结果由 watch(live.secKillResult) 处理
+    } else {
+      ordering.value = false
+      showToast(res.result || '抢购失败', 'warning')
+    }
+  } catch (e) {
     ordering.value = false
-    showToast('连接未就绪', 'warning')
-    return
+    // 业务错误码（库存不足等）已在拦截器提示，此处兜底
+    if (!e.business) showToast('网络异常，请重试', 'error')
   }
-  pendingReqId.value = reqId
 }
 
-// 监听秒杀结果（匹配 reqId 防止错位）
+// 监听秒杀结果（来自 WS gRPC 推送，按 orderNo 匹配）
 watch(() => live.secKillResult, (r) => {
-  if (!r || !pendingReqId.value || r.reqId !== pendingReqId.value) return
-  pendingReqId.value = null
+  if (!r || !live.pendingOrderNo) return
+  // 只处理匹配当前订单号的推送
+  if (r.orderNo !== live.pendingOrderNo && r.reqId !== live.pendingOrderNo) return
+  live.pendingOrderNo = null
   ordering.value = false
 
   if (r.ok) {
-    // 生成订单（mock 持久化）
+    // 后端已通过 Kafka 异步创建订单，前端生成本地订单用于展示
     const order = orderStore.create({
       id: route.params.roomId,
       name: activity.name,

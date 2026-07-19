@@ -46,6 +46,12 @@ http.interceptors.request.use((config) => {
       } catch { /* ignore malformed token */ }
     }
   }
+  // 写操作自动注入幂等键（后端 IdempotencyService 基于 Redis SETNX，TTL 5min）
+  const writeMethods = ['post', 'put', 'delete', 'patch']
+  if (writeMethods.includes(config.method) && !config.headers['X-Idempotency-Key']) {
+    config.headers['X-Idempotency-Key'] = crypto?.randomUUID?.() ||
+      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }
   // 签名接口注入 X-Sign 头
   if (config.sign) {
     Object.assign(config.headers, genSignHeaders())

@@ -36,7 +36,8 @@ public class SeckillPushGrpcService extends SeckillPushGrpc.SeckillPushImplBase 
                         "type", "SEC_KILL_RESULT",
                         "data", Map.of(
                                 "orderNo", request.getOrderNo(),
-                                "success", request.getSuccess(),
+                                "ok", request.getSuccess(),
+                                "reason", request.getSuccess() ? "success" : "failed",
                                 "message", request.getMessage(),
                                 "timestamp", request.getTimestamp())));
                 ws.getSession().getAsyncRemote().sendText(json);

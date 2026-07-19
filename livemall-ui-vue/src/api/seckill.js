@@ -6,7 +6,7 @@ export const seckillApi = {
   updateActivityStatus(id, status) { return http.put(`/seckill/activity/${id}/status`, { status }) },
   activityDetail(id) { return http.get(`/seckill/activity/${id}`) },
   activityList(params) { return http.get('/seckill/activity/list', { params }) },
-  /** 抢购下单（阻塞等待 Kafka 结果）· 单独 15s 超时 */
+  /** 抢购下单 → { result, orderNo }（Lua 扣减后 Kafka 异步创单 + gRPC 推送结果） */
   placeOrder(activityId) {
     return http.post('/seckill/order', { activityId }, { timeout: 15000 })
   },

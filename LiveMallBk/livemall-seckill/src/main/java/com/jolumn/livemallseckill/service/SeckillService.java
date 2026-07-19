@@ -49,7 +49,7 @@ public class SeckillService {
                 .orElseThrow(() -> new BizException(404, "活动不存在"));
     }
 
-    /** 更新活动状态（0:待开始 1:进行中 2:已结束 3:已取消） */
+    /** 更新活动状态（0:待开始 1:进行中 2:已结束 3:已取消）。上架(→1)时初始化 Redis 库存分片 */
     @Transactional
     public void updateStatus(Long activityId, Integer status) {
         SeckillActivity activity = activityRepo.findById(activityId)
@@ -59,6 +59,10 @@ public class SeckillService {
         }
         activity.setStatus(status);
         activityRepo.save(activity);
+
+        if (status == 1) {
+            stockService.initStock(activityId, activity.getTotalStock());
+        }
     }
 
     /** 抢购下单 */

@@ -154,7 +154,8 @@ public class LiveWebSocket {
                 "type", "BARRAGE",
                 "data", Map.of(
                         "userId", ws.getUserId(),
-                        "nickname", ws.getDisplayName(),
+                        "username", ws.getDisplayName(),
+                        "avatar", "",
                         "content", content,
                         "timestamp", System.currentTimeMillis()));
 
@@ -173,8 +174,12 @@ public class LiveWebSocket {
                 "type", "GIFT",
                 "data", Map.of(
                         "userId", ws.getUserId(),
-                        "nickname", ws.getDisplayName(),
+                        "username", ws.getDisplayName(),
                         "giftId", giftId,
+                        "giftName", "",
+                        "giftIcon", "",
+                        "price", 0,
+                        "gain", 0,
                         "quantity", quantity != null ? quantity : 1,
                         "timestamp", System.currentTimeMillis()));
 
