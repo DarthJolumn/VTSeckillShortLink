@@ -71,4 +71,8 @@ public class WsSessionManager {
     public int totalOnline() {
         return sessions.size();
     }
+
+    public Collection<WsSession> getAllSessions() {
+        return sessions.values();
+    }
 }
