@@ -185,6 +185,7 @@ import { liveApi } from '@/api/live'
 import { seckillApi } from '@/api/seckill'
 import { useLiveStore } from '@/stores/live'
 import { orderStore } from '@/stores/order'
+import { useCamera } from '@/composables/useCamera'
 import { showToast } from '@/utils/toast'
 import BarrageTrack from '@/components/base/BarrageTrack.vue'
 import CountDown from '@/components/base/CountDown.vue'
@@ -203,25 +204,23 @@ const live = useLiveStore()
 
 // —— 视频播放 ——
 const videoRef = ref(null)
+const camera = useCamera()
 const videoReady = ref(false)
 const VIDEO_SRC = '/demo.mp4'
-let localStream = null
 
 async function tryLoadVideo() {
-  console.log('[LiveRoom] tryLoadVideo 开始, mediaDevices=', !!navigator.mediaDevices)
-  // 优先：摄像头作为直播画面
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 },
-      audio: false,
-    })
-    if (videoRef.value) videoRef.value.srcObject = localStream
+  // 优先：摄像头作为直播画面（仅 HTTPS 或 localhost 下可用）
+  const ok = await camera.open({ video: { width: 1280, height: 720 }, audio: false })
+  if (ok) {
+    if (videoRef.value) videoRef.value.srcObject = camera.stream.value
     videoReady.value = true
-    console.log('[LiveRoom] 摄像头已就绪')
     return
-  } catch (e) {
-    console.warn('[LiveRoom] 摄像头不可用:', e.name, e.message)
-    // 常见原因：NotAllowedError(未授权) / NotFoundError(无摄像头) / NotReadableError(被占用)
+  }
+  // 摄像头不可用时给出具体原因
+  if (camera.errorInfo.value) {
+    const info = camera.errorInfo.value
+    console.warn(`[LiveRoom] 摄像头不可用: ${info.short} — ${info.detail}`)
+    if (info.action) showToast(`${info.short}：${info.action}`, 'info')
   }
 
   // 降级：探测 demo.mp4
@@ -441,7 +440,7 @@ onMounted(() => {
   live.join(Number(route.params.roomId) || 1)
 })
 onBeforeUnmount(() => {
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null }
+  camera.close()
   live.leave()
 })
 </script>

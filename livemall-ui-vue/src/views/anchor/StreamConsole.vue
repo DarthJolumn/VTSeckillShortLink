@@ -27,7 +27,7 @@
       <section class="col col--main">
         <!-- 视频区 -->
         <div class="player" :class="{ 'is-live': live }">
-          <video v-if="stream" ref="videoRef" autoplay muted playsinline class="player__video" />
+          <video v-if="camera.stream.value" ref="videoRef" autoplay muted playsinline class="player__video" />
           <div v-else class="player__placeholder">
             <div class="player__placeholder-glow" />
             <span class="player__placeholder-icon">{{ live ? '📡' : '🎥' }}</span>
@@ -262,6 +262,7 @@ import { showToast } from '@/utils/toast'
 import { liveApi } from '@/api/live'
 import { seckillApi } from '@/api/seckill'
 import { useLiveStore } from '@/stores/live'
+import { useCamera, checkSecureContext } from '@/composables/useCamera'
 import NeonButton from '@/components/base/NeonButton.vue'
 import NumberFlip from '@/components/base/NumberFlip.vue'
 import BarrageTrack from '@/components/base/BarrageTrack.vue'
@@ -281,11 +282,13 @@ const COVER_COLORS = [
 // —— 布局 ——
 const layout = ref('default') // default | vertical
 
-// —— 直播状态 ——
+// —— 摄像头 ——
 const videoRef = ref(null)
-const stream = ref(null)
+const camera = useCamera()
 const micOn = ref(true)
 const camOn = ref(true)
+
+// —— 直播状态 ——
 const roomId = ref('')
 const streamKey = ref('')
 const startedAt = ref(0)
@@ -308,6 +311,14 @@ const elapsedLabel = computed(() => {
 // —— 开播 / 关播 ——
 async function onStart() {
   if (!form.title) { showToast('请填写直播标题', 'warning'); return }
+
+  // 安全上下文检查
+  const ctx = checkSecureContext()
+  if (!ctx.ok) {
+    showToast(ctx.reason, 'danger')
+    return
+  }
+
   let room
   try {
     room = await liveApi.startRoom({
@@ -321,14 +332,19 @@ async function onStart() {
   }
   roomId.value = room.id
   streamKey.value = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({
-      video: camOn.value ? { width: 1280, height: 720 } : false,
-      audio: micOn.value,
-    })
-    stream.value = s
-    requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = s })
-  } catch { showToast('未取得摄像头权限，进入无视频演示模式', 'info') }
+
+  // 打开摄像头
+  const ok = await camera.open({ video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value })
+  if (!ok) {
+    const info = camera.errorInfo.value
+    showToast(`${info.short}：${info.detail}`, 'warning')
+    if (info.action) showToast(info.action, 'info')
+  }
+  // 绑定 video 元素
+  if (camera.stream.value) {
+    requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = camera.stream.value })
+  }
+
   liveFlag.value = true
   startedAt.value = Date.now()
   // 连自己的房间 WS 收评论
@@ -340,7 +356,7 @@ async function onStart() {
 function onStop() {
   if (!confirm('确定结束本次直播？')) return
   if (roomId.value) liveApi.stopRoom(roomId.value).catch(() => {})
-  if (stream.value) { stream.value.getTracks().forEach(t => t.stop()); stream.value = null }
+  camera.close()
   liveFlag.value = false
   live.leave()
   stopStatsTimer()
@@ -349,12 +365,10 @@ function onStop() {
 }
 
 function onToggleMic() {
-  micOn.value = !micOn.value
-  if (stream.value) stream.value.getAudioTracks().forEach(t => t.enabled = micOn.value)
+  micOn.value = camera.toggleMic()
 }
 function onToggleCam() {
-  camOn.value = !camOn.value
-  if (stream.value) stream.value.getVideoTracks().forEach(t => t.enabled = camOn.value)
+  camOn.value = camera.toggleCam()
 }
 
 // —— 评论（来自 WS 的弹幕 + 礼物消息） ——
@@ -552,13 +566,10 @@ async function restoreIfLive() {
       form.category = room.category || 'digital'
       live.join(room.id)
       startStatsTimer()
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({
-          video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value,
-        })
-        stream.value = s
-        requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = s })
-      } catch { /* 摄像头不可用 */ }
+      await camera.open({ video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value })
+      if (camera.stream.value) {
+        requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = camera.stream.value })
+      }
       showToast('已恢复直播', 'info')
     }
   } catch { /* 后端未就绪 */ }
@@ -567,7 +578,7 @@ async function restoreIfLive() {
 onMounted(() => { restoreIfLive() })
 onBeforeUnmount(() => {
   stopStatsTimer()
-  if (stream.value) stream.value.getTracks().forEach(t => t.stop())
+  camera.close()
   live.leave()
 })
 

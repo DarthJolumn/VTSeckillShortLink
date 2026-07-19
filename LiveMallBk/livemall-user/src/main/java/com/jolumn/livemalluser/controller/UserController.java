@@ -32,6 +32,12 @@ public class UserController {
         return Result.ok(vo);
     }
 
+    @GetMapping("/balance")
+    @RequireAuth
+    public Result<java.math.BigDecimal> getBalance(@RequestHeader("X-User-Id") Long userId) {
+        return Result.ok(userService.getBalance(userId));
+    }
+
 //    @GetMapping("/ping")
 //    public Result<String> ping() {
 //        log.info("pong");

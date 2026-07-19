@@ -26,6 +26,8 @@ public class User {
 
     private Integer status;
 
+    private java.math.BigDecimal balance;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -93,6 +95,9 @@ public class User {
     public void setStatus(Integer status) {
         this.status = status;
     }
+
+    public java.math.BigDecimal getBalance() { return balance; }
+    public void setBalance(java.math.BigDecimal balance) { this.balance = balance; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

@@ -309,4 +309,20 @@ public class UserService {
         user.setStatus(status);
         userMapper.updateById(user);
     }
+
+    /** 查询余额 */
+    public java.math.BigDecimal getBalance(Long userId) {
+        return findById(userId).getBalance();
+    }
+
+    /** 扣款（送礼时调用） */
+    @Transactional
+    public void deductBalance(Long userId, java.math.BigDecimal amount) {
+        User user = findById(userId);
+        if (user.getBalance() == null || user.getBalance().compareTo(amount) < 0) {
+            throw new BizException(1015, "余额不足");
+        }
+        user.setBalance(user.getBalance().subtract(amount));
+        userMapper.updateById(user);
+    }
 }
