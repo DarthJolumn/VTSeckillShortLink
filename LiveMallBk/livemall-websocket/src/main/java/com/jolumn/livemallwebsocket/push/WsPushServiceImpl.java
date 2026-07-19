@@ -106,6 +106,6 @@ public class WsPushServiceImpl implements WsPushService {
         }
     }
 
-    private static final com.fasterxml.jackson.databind.ObjectMapper mapper =
-            new com.fasterxml.jackson.databind.ObjectMapper();
+    private static final tools.jackson.databind.ObjectMapper mapper =
+            new tools.jackson.databind.ObjectMapper();
 }

@@ -22,7 +22,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * <ul>
  *   <li>JSR-356 {@code @ServerEndpoint} 默认跑 Tomcat 线程池，
  *       由 {@link com.jolumn.livemallwebsocket.config.WebSocketConfig} 注入 VT Executor</li>
- *   <li>禁用 {@code synchronized(session) + getBasicRemote()}（VT pinning）</li>
+ *   <li>JDK 25 JEP 491 已修复 synchronized pinning，但仍推荐 {@code session.getAsyncRemote().sendText()}</li>
  *   <li>必须用 {@code session.getAsyncRemote().sendText()}（无锁 + 不 pin）</li>
  *   <li>超时清理 / 异步入库用 {@code Thread.startVirtualThread}，不用 CompletableFuture.runAsync</li>
  * </ul>

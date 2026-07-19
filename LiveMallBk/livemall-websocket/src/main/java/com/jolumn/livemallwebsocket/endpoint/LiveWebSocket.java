@@ -1,6 +1,6 @@
 package com.jolumn.livemallwebsocket.endpoint;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.jolumn.livemallcommon.util.JwtUtil;
 import com.jolumn.livemallwebsocket.manager.WsSessionManager;
 import com.jolumn.livemallwebsocket.model.WsSession;

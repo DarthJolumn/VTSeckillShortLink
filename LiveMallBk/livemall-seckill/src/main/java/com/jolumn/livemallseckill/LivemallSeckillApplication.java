@@ -26,7 +26,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  *   <li>Consumer INSERT 用 @Transactional + MANUAL ACK</li>
  *   <li>取消/退款用 @Transactional 包裹 DB+Redis（文档承认的妥协）</li>
  *   <li>KafkaListener 内部 Thread.startVirtualThread 委托 VT 执行（P1-5 fixed）</li>
- *   <li>Snowflake ID 用 ReentrantLock 不用 synchronized</li>
+ *   <li>Snowflake ID 用 ReentrantLock（JDK 25 JEP 491 已修复 synchronized pinning，RL 保留为最佳实践）</li>
  * </ul>
  */
 @SpringBootApplication(scanBasePackages = {

@@ -14,7 +14,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * <ul>
  *   <li>{@code spring.threads.virtual.enabled=true}：HTTP 请求跑在 VT 上</li>
  *   <li>用户上下文用 {@code ScopedValue}（{@link com.jolumn.livemallcommon.util.UserContext}）</li>
- *   <li>锁用 {@code ReentrantLock}（业务模块无 synchronized）</li>
+ *   <li>锁用 {@code ReentrantLock}（JDK 25 JEP 491 已修复 synchronized pinning，RL 保留为最佳实践）</li>
  * </ul>
  *
  * <h3>组件扫描</h3>
