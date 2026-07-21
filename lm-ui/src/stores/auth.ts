@@ -9,7 +9,13 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserProfile | null>(null)
 
   const isLoggedIn = computed(() => !!accessToken.value)
-  const role = computed(() => user.value?.role ?? 0)
+  const role = computed(() => {
+    // 优先用内存中已加载的完整用户信息
+    if (user.value) return user.value.role
+    // 刷新页面后 user 为 null，降级使用 localStorage 缓存的角色
+    const cached = localStorage.getItem('userRole')
+    return cached ? Number(cached) : 0
+  })
   const isAnchor = computed(() => role.value >= 2) // 2=ANCHOR 3=ADMIN
 
   function setTokens(res: LoginResponse) {
@@ -21,6 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setUser(u: UserProfile) {
     user.value = u
+    localStorage.setItem('userRole', String(u.role))
   }
 
   function clearTokens() {
@@ -29,6 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
+    localStorage.removeItem('userRole')
   }
 
   return { accessToken, refreshToken, user, isLoggedIn, role, isAnchor, setTokens, setUser, clearTokens }

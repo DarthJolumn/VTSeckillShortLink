@@ -18,21 +18,28 @@ router.beforeEach(async (to, _from, next) => {
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
 
-  // 已登录但资料未加载（刷新页面）→ 先拉资料，角色判断依赖它
-  if (auth.isLoggedIn && !auth.user && (to.meta.requiresAuth || to.meta.roles)) {
-    try {
-      await useUserStore().fetchProfile()
-    } catch {
-      // 401 已由拦截器处理跳转
-      return next(false)
+  // B. 角色权限（提前用 localStorage 缓存的角色检查，不阻塞导航）
+  if (to.meta.roles) {
+    const cachedRole = ROLE_MAP[auth.role] || 'AUDIENCE'
+    if (!to.meta.roles.includes(cachedRole)) {
+      return next('/403')
     }
   }
 
-  // B. 角色权限
-  if (to.meta.roles) {
-    const userRole = ROLE_MAP[auth.role] || 'AUDIENCE'
-    if (!to.meta.roles.includes(userRole)) {
-      return next('/403')
+  // 已登录但资料未加载（刷新页面）→ 后台拉取完整资料
+  if (auth.isLoggedIn && !auth.user && (to.meta.requiresAuth || to.meta.roles)) {
+    try {
+      await useUserStore().fetchProfile()
+    } catch (e) {
+      const err = e as { code?: number }
+      if (err?.code === 401 || err?.code === 1013) {
+        auth.clearTokens()
+        return next({ path: '/login', query: { redirect: to.fullPath } })
+      }
+      // 非鉴权错误（网络/服务器异常）→ 已通过的导航放行，未通过的阻止
+      if (to.meta.requiresAuth || to.meta.roles) {
+        return next(false)
+      }
     }
   }
 
