@@ -20,7 +20,7 @@
 </template>
 
 <script setup>
-import { ref, watch, shallowRef, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
@@ -30,7 +30,7 @@ const LANE_HEIGHT = 30
 const root = ref(null)
 
 // 增量调度：只对新增 message 分配 lane + 入场，避免全量重建导致的重入场与同轨叠弹幕
-const visible = shallowRef([])
+const visible = ref([])
 let laneNextFreeAt = new Array(props.lanes).fill(0)
 let seq = 0
 let lastSeenIdx = -1 // 已处理到的 messages 索引

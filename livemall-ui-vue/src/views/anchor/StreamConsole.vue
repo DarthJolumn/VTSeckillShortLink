@@ -351,7 +351,6 @@ async function onStart() {
   startedAt.value = Date.now()
   // 连自己的房间 WS 收评论
   live.join(room.id)
-  startStatsTimer()
   showToast('直播已开始', 'success')
 }
 
@@ -365,7 +364,6 @@ function onStop() {
   camera.close()
   liveFlag.value = false
   live.leave()
-  stopStatsTimer()
   showToast(`本场结束 · ${elapsedLabel.value} · 收益 ¥${stats.revenue.toFixed(2)}`, 'success')
   Object.assign(stats, { online: 0, peak: 0, barrage: 0, gift: 0, likes: 0, revenue: 0, totalView: 0 })
   roomId.value = ''
@@ -411,53 +409,34 @@ function onSendComment() {
     showToast('连接未就绪', 'warning')
     return
   }
-  // 自己发的也显示
-  comments.value.push({ username: '我', content: commentDraft.value.trim(), self: true, timestamp: Date.now(), userId: 0 })
+  // 不在此处乐观推送 — WS 回显由 watch(live.barrage) 统一驱动，避免重复
   commentDraft.value = ''
-  nextTick(() => {
-    const el = commentListRef.value
-    if (el) el.scrollTop = el.scrollHeight
-  })
 }
 
 // —— 实时统计 ——
 const stats = reactive({ online: 0, peak: 0, totalView: 0, likes: 0, barrage: 0, gift: 0, revenue: 0 })
 const roomOnline = ref(0)
 const leaderboard = ref([])
-let statsTimer = null
 
-watch(() => live.online, v => { roomOnline.value = v; updateStatsFromLive() })
+// —— 实时统计（从 WS 真实消息驱动，无随机假数据） ——
+watch(() => live.online, v => {
+  roomOnline.value = v
+  stats.online = v
+  stats.peak = Math.max(stats.peak, v)
+})
 watch(() => live.leaderboard.length, () => { leaderboard.value = [...live.leaderboard] })
 
-function updateStatsFromLive() {
-  const liveData = live.getSnapshot?.()
-  if (liveData) {
-    roomOnline.value = liveData.online || roomOnline.value
-    leaderboard.value = liveData.scores || leaderboard.value
-  } else {
-    roomOnline.value = live.online || roomOnline.value
+// 弹幕计数：每次 barrage 队列新增时 +1
+watch(() => live.barrage.length, () => { stats.barrage++ })
+// 礼物计数 + 收益累加
+watch(() => live.giftFeed.length, (newLen, oldLen) => {
+  if (newLen > (oldLen || 0)) {
+    stats.gift++
+    // 收益按礼物价格累加（后端 GIFT 消息带 price 字段）
+    const latest = live.giftFeed[0]
+    if (latest) stats.revenue += (latest.price || 0) * (latest.quantity || 1)
   }
-}
-
-function startStatsTimer() {
-  stats.online = 12; stats.totalView = 12; stats.peak = 12
-  statsTimer = setInterval(() => {
-    const delta = Math.floor((Math.random() - 0.45) * 8)
-    const online = Math.max(1, (roomOnline.value || stats.online) + delta)
-    if (roomOnline.value < 1) roomOnline.value = online
-    stats.online = online
-    stats.peak = Math.max(stats.peak, online)
-    stats.totalView += Math.floor(Math.random() * 5)
-    stats.likes += Math.floor(Math.random() * 12)
-    stats.barrage += Math.floor(Math.random() * 4)
-    if (Math.random() < 0.4) {
-      const g = [9, 9, 9, 120, 666][Math.floor(Math.random() * 5)]
-      stats.gift += 1
-      stats.revenue += g
-    }
-  }, 5000)
-}
-function stopStatsTimer() { if (statsTimer) clearInterval(statsTimer); statsTimer = null }
+})
 
 // —— 秒杀管理 ——
 const seckillDlgOpen = ref(false)
@@ -582,7 +561,6 @@ async function restoreIfLive() {
     form.title = room.title || ''
     form.category = room.category || 'digital'
     live.join(room.id)
-    startStatsTimer()
     await camera.open({ video: camOn.value ? { width: 1280, height: 720 } : false, audio: micOn.value })
     if (camera.stream.value) {
       requestAnimationFrame(() => { if (videoRef.value) videoRef.value.srcObject = camera.stream.value })
@@ -593,7 +571,6 @@ async function restoreIfLive() {
 
 onMounted(() => { restoreIfLive() })
 onBeforeUnmount(() => {
-  stopStatsTimer()
   camera.close()
   live.leave()
 })
