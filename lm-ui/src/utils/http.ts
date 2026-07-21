@@ -44,9 +44,8 @@ let isRefreshing = false
 let pendingQueue: Array<() => void> = []
 
 async function redirectToLogin(): Promise<void> {
-  localStorage.removeItem('accessToken')
-  localStorage.removeItem('refreshToken')
-  // 动态引入避免循环依赖
+  const { useAuthStore } = await import('@/stores/auth')
+  useAuthStore().clearTokens()
   const { default: router } = await import('@/router')
   if (router.currentRoute.value.path !== '/login') {
     router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
