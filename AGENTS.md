@@ -36,3 +36,22 @@ Integer role = ((Number) claims.get("role")).intValue();
 #### Spring Boot 4.x 下 Jackson 包名变更
 
 `com.fasterxml.jackson` → `tools.jackson`（升级报告 §3.3）
+
+#### Gateway 白名单模式：Ant `*` 不匹配多级路径
+
+`application.yml` 中 `gateway.auth.public-get-paths` 使用 Ant 路径匹配器。**`*` 只匹配一级路径**，`/live/room/*` 不匹配 `/live/rooms`。
+
+如果用户反映"匿名用户进直播大厅看不到房间列表"，优先排查此处。
+
+修复方式：将需要公开的路径改为 `**` 模式，例如 `/live/**`。
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->
