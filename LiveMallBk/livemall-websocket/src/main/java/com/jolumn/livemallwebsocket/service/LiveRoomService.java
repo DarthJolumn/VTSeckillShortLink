@@ -4,11 +4,13 @@ import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallwebsocket.entity.LiveRoom;
 import com.jolumn.livemallwebsocket.manager.WsSessionManager;
 import com.jolumn.livemallwebsocket.mapper.LiveRoomRepository;
+import com.jolumn.livemallwebsocket.model.WsSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +55,7 @@ public class LiveRoomService {
 
     /**
      * 关播。仅主播本人可关。
+     * 广播 ROOM_CLOSED → 异步关闭所有观众 WS 连接。
      */
     @Transactional
     public void stop(Long roomId, Long anchorId) {
@@ -66,10 +69,32 @@ public class LiveRoomService {
         }
         room.setStatus(0);
         room.setEndedAt(LocalDateTime.now());
-        // 写入关播时的在线人数
         room.setOnlineCount(sessionManager.getRoomOnline(roomId));
         repo.save(room);
         log.info("关播成功: roomId={}, anchorId={}", roomId, anchorId);
+
+        // 广播 ROOM_CLOSED + 3s 后关闭所有观众 WS 连接
+        String closeMsg = "{\"type\":\"ROOM_CLOSED\",\"data\":{\"roomId\":" + roomId + "}}";
+        Thread.startVirtualThread(() -> {
+            for (WsSession ws : sessionManager.getRoomSessions(roomId)) {
+                try {
+                    if (ws.getSession().isOpen()) {
+                        ws.getSession().getAsyncRemote().sendText(closeMsg);
+                    }
+                } catch (Exception e) {
+                    log.warn("发送 ROOM_CLOSED 失败: session={}", ws.getSessionId());
+                }
+            }
+            // 等 3s 让客户端收到消息并渲染弹窗
+            try { Thread.sleep(3000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+            for (WsSession ws : sessionManager.getRoomSessions(roomId)) {
+                try {
+                    if (ws.getSession().isOpen()) ws.getSession().close();
+                } catch (IOException e) {
+                    log.warn("关闭 session 失败: session={}", ws.getSessionId());
+                }
+            }
+        });
     }
 
     /**

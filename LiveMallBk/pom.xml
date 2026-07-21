@@ -30,7 +30,7 @@
         <sentinel.version>1.8.9</sentinel.version>
 
         <!-- ====== 消息 ====== -->
-        <kafka.version>3.6.1</kafka.version>
+        <!-- 由 spring-boot-dependencies BOM 管理 → kafka-clients 4.2.1 -->
 
         <!-- ====== 缓存 ====== -->
         <caffeine.version>3.2.0</caffeine.version>
