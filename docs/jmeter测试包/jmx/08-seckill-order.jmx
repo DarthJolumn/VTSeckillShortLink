@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="缁夋帗娼冩稉瀣礋閺嬩線妾?- 2000娴滄椽娉﹂崥鍫㈠仯">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="ACTIVITY_ID" elementType="Argument">
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.comments">2000娴滃搫鎮撻弮鑸靛鐠?00娴犺泛鏅㈤崫渚婄礉妤犲矁鐦塕edis Lua閸樼喎鐡欓幍锝呭櫤</stringProp>
+    </TestPlan>
+    <hashTree>
+      <SetupThreadGroup guiclass="SetupThreadGroupGui" testclass="SetupThreadGroup" testname="閸撳秶鐤?閻ц缍嶉懢宄板絿Token">
+        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.ramp_time">1</intProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">stoptestnow</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">1</intProp>
+        </elementProp>
+      </SetupThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="閻ц缍嶅ù瀣槸閻劍鍩?>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"username":"testuser0001","password":"Test1234"}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">localhost</stringProp>
+          <stringProp name="HTTPSampler.port">8080</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/auth/login</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">X-Device-Id</stringProp>
+                <stringProp name="Header.value">seckill-setup</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="閹绘劕褰嘥oken">
+            <stringProp name="JSONPostProcessor.referenceNames">adminToken</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPatterns">$.data.accessToken</stringProp>
+            <stringProp name="JSONPostProcessor.matchNumbers">1</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="缁夋帗娼冮悽銊﹀煕">
+        <intProp name="ThreadGroup.num_threads">2000</intProp>
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">1</intProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="缁夋帗娼冮悽銊﹀煕閺佺増宓?>
+          <boolProp name="CSVDataSet.recycle">false</boolProp>
+          <boolProp name="CSVDataSet.stopThread">true</boolProp>
+          <stringProp name="CSVDataSet.filename">../csv/seckill-users.csv</stringProp>
+          <stringProp name="CSVDataSet.variableNames">username</stringProp>
+          <stringProp name="CSVDataSet.delimiter">,</stringProp>
+          <boolProp name="CSVDataSet.quotedData">false</boolProp>
+          <boolProp name="CSVDataSet.shareMode">shareMode.all</boolProp>
+        </CSVDataSet>
+        <hashTree/>
+
+        <SyncTimer guiclass="TestBeanGUI" testclass="SyncTimer" testname="闂嗗棗鎮庨悙?2000娴滃搫鎮撻弮鑸靛">
+          <intProp name="groupSize">2000</intProp>
+          <longProp name="timeoutInMs">30000</longProp>
+        </SyncTimer>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /seckill/order">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{"activityId":${ACTIVITY_ID}}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">localhost</stringProp>
+          <stringProp name="HTTPSampler.port">8080</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.path">/seckill/order</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <boolProp name="HTTPSampler.followRedirects">true</boolProp>
+          <boolProp name="HTTPSampler.autoRedirects">false</boolProp>
+          <boolProp name="HTTPSampler.useKeepAlive">true</boolProp>
+          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+          <stringProp name="HTTPSampler.response_timeout">10000</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Headers">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">X-Device-Id</stringProp>
+                <stringProp name="Header.value">seckill-${username}</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <DurationAssertion guiclass="DurationAssertionGui" testclass="DurationAssertion" testname="P99 < 500ms">
+            <stringProp name="DurationAssertion.duration">500</stringProp>
+          </DurationAssertion>
+          <hashTree/>
+        </hashTree>
+
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="缁夋帗娼冮懕姘値閹躲儱鎲?>
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <threadName>true</threadName>
+              <fieldNames>true</fieldNames>
+              <bytes>true</bytes>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

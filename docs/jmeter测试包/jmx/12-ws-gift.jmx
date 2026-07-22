@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="缁€鑲╁⒖楠炴寧鎸遍弸渚€妾?- 500 WS鏉╃偞甯?>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="ROOM_ID" elementType="Argument">
+            <stringProp name="Argument.value">1</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.comments">缁€鑲╁⒖閸欐垿鈧浇袝閸欐厪ubbo RPC閹烘帟顢戝婊冨閸?+ 楠炴寧鎸遍敍宀冾潎鐎电喕娉曢張宥呭鐠嬪啰鏁ゅ鎯扮箿</stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="WS缁€鑲╁⒖閻劍鍩?>
+        <intProp name="ThreadGroup.num_threads">500</intProp>
+        <intProp name="ThreadGroup.ramp_time">30</intProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp>
+        <stringProp name="ThreadGroup.delay">0</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="缁€鑲╁⒖閺佺増宓?>
+          <boolProp name="CSVDataSet.recycle">true</boolProp>
+          <boolProp name="CSVDataSet.stopThread">false</boolProp>
+          <stringProp name="CSVDataSet.filename">../csv/gifts.csv</stringProp>
+          <stringProp name="CSVDataSet.variableNames">giftId,giftName,price</stringProp>
+          <stringProp name="CSVDataSet.delimiter">,</stringProp>
+          <boolProp name="CSVDataSet.quotedData">false</boolProp>
+          <boolProp name="CSVDataSet.shareMode">shareMode.all</boolProp>
+        </CSVDataSet>
+        <hashTree/>
+
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="WS缁€鑲╁⒖閸欐垿鈧?>
+          <stringProp name="JSR223.filename"></stringProp>
+          <stringProp name="JSR223.parameters"></stringProp>
+          <stringProp name="JSR223.scriptLanguage">groovy</stringProp>
+          <stringProp name="JSR223.cacheKey">true</stringProp>
+          <stringProp name="JSR223.script">
+// WebSocket 缁€鑲╁⒖濞村鐦懘姘拱
+def roomId = vars.get("ROOM_ID")
+def giftId = vars.get("giftId")
+def giftName = vars.get("giftName")
+log.info("缁€鑲╁⒖閸欐垿鈧? room=" + roomId + ", gift=" + giftName + "(" + giftId + ")")
+          </stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+
+        <UniformRandomTimer guiclass="UniformRandomTimerGui" testclass="UniformRandomTimer" testname="缁€鑲╁⒖闂傛挳娈?0-30s">
+          <stringProp name="ConstantTimer.delay">10000</stringProp>
+          <stringProp name="RandomTimer.range">20000</stringProp>
+        </UniformRandomTimer>
+        <hashTree/>
+
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="缁€鑲╁⒖楠炴寧鎸遍幎銉ユ啞">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <threadName>true</threadName>
+              <fieldNames>true</fieldNames>
+              <bytes>true</bytes>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
