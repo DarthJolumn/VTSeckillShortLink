@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onUnmounted, isRef, type Ref } from 'vue'
 import { getDeviceId } from '@/utils/device'
 import { useSeckillStore } from '@/stores/seckill'
 import { getGiftDef } from '@/constants/gifts'
@@ -14,7 +14,7 @@ type MessageHandler = (msg: WsServerMessage) => void
 type KickHandler = () => void
 type GiftHandler = (gift: WsGift['data']) => void
 
-export function useWebSocket(roomId: number) {
+export function useWebSocket(roomId: Ref<number> | number) {
   const ws = ref<WebSocket | null>(null)
   const connected = ref(false)
   const authenticated = ref(false)
@@ -38,10 +38,12 @@ export function useWebSocket(roomId: number) {
 
   function connect(token?: string) {
     manualClose = false
+    const rid = isRef(roomId) ? roomId.value : roomId
+    if (!rid) return
     const params = new URLSearchParams({ deviceId: getDeviceId() })
     if (token) params.set('token', token)
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    ws.value = new WebSocket(`${proto}://${location.host}/ws/live/${roomId}?${params}`)
+    ws.value = new WebSocket(`${proto}://${location.host}/ws/live/${rid}?${params}`)
 
     ws.value.onopen = () => {
       connected.value = true

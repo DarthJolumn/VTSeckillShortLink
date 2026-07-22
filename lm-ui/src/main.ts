@@ -15,7 +15,13 @@ async function bootstrap() {
       console.warn('[MSW] 启动失败，请求将直达后端:', e)
     }
   } else {
-    // 显式关闭 MSW 时尝试注销可能残留的 Service Worker
+    // 显式关闭 MSW 时清理残留的 mock token 和 Service Worker
+    const at = localStorage.getItem('accessToken')
+    if (at && at.startsWith('mock_at_')) {
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('userRole')
+    }
     try {
       const registration = await navigator.serviceWorker?.getRegistration()
       if (registration) await registration.unregister()

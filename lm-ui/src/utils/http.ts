@@ -90,9 +90,15 @@ http.interceptors.response.use(
 
     config._retry = true
     isRefreshing = true
+    const rt = localStorage.getItem('refreshToken')
+    if (!rt) {
+      pendingQueue = []
+      await redirectToLogin()
+      return Promise.reject(new ApiError(1013, '登录已过期，请重新登录'))
+    }
     try {
       const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/refresh', {
-        refreshToken: localStorage.getItem('refreshToken'),
+        refreshToken: rt,
       })
       localStorage.setItem('accessToken', data.data.accessToken)
       localStorage.setItem('refreshToken', data.data.refreshToken)
