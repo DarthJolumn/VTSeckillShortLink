@@ -105,16 +105,16 @@ public class UserService {
         String accessToken = jwtUtil.generate(user.getId(), user.getRole(), 900);
         String refreshToken = "rft_" + UUID.randomUUID().toString().replace("-", "");
         String refreshKey = "refresh:" + refreshToken;
-        String deviceSessionKey = "device_sessions:" + user.getId();
+        String activeKey = "active_token:" + user.getId() + ":" + deviceId;
 
         try {
+            String oldRefreshKey = redisTemplate.opsForValue().get(activeKey);
+            if (oldRefreshKey != null) {
+                redisTemplate.delete(oldRefreshKey);
+            }
             redisTemplate.opsForValue().set(refreshKey,
                     user.getId() + ":" + user.getRole() + ":" + deviceId, 7, TimeUnit.DAYS);
-            redisTemplate.opsForSet().add(deviceSessionKey, deviceId);
-            redisTemplate.expire(deviceSessionKey, 7, TimeUnit.DAYS);
-            // 维护反向索引：userId → 所有 refresh token keys，踢设备时用来定位
-            redisTemplate.opsForSet().add("user_tokens:" + user.getId(), refreshKey);
-            redisTemplate.expire("user_tokens:" + user.getId(), 7, TimeUnit.DAYS);
+            redisTemplate.opsForValue().set(activeKey, refreshKey, 7, TimeUnit.DAYS);
         } catch (Exception e) {
             log.error("登录时 Redis 写入失败, userId={}", user.getId(), e);
             throw new BizException(500, "系统繁忙，请稍后重试");
@@ -141,7 +141,7 @@ public class UserService {
         }
         String userId = parts[0];
         String deviceId = parts[2];
-        redisTemplate.opsForSet().remove("device_sessions:" + userId, deviceId);
+        redisTemplate.delete("active_token:" + userId + ":" + deviceId);
     }
 
     public LoginResponse refresh(String refreshToken) {
@@ -202,10 +202,13 @@ public class UserService {
 
             // 新 Refresh Token（Rotation）
             String newRefreshToken = "rft_" + UUID.randomUUID().toString().replace("-", "");
+            String newRefreshKey = "refresh:" + newRefreshToken;
             redisTemplate.opsForValue().set(
-                    "refresh:" + newRefreshToken,
+                    newRefreshKey,
                     userId + ":" + role + ":" + deviceId,
                     7, TimeUnit.DAYS);
+            redisTemplate.opsForValue().set(
+                    "active_token:" + userId + ":" + deviceId, newRefreshKey, 7, TimeUnit.DAYS);
 
             LoginResponse resp = LoginResponse.of(newAccessToken, newRefreshToken);
             future.complete(resp);
@@ -226,38 +229,27 @@ public class UserService {
     }
 
     public List<DeviceInfo> getDevices(Long userId) {
-        Set<String> deviceIds = redisTemplate.opsForSet()
-                .members("device_sessions:" + userId);
-        if (deviceIds == null || deviceIds.isEmpty()) {
+        String prefix = "active_token:" + userId + ":";
+        Set<String> keys = redisTemplate.keys(prefix + "*");
+        if (keys == null || keys.isEmpty()) {
             return Collections.emptyList();
         }
-        return deviceIds.stream()
+        return keys.stream()
+                .map(k -> k.substring(prefix.length()))
                 .map(did -> DeviceInfo.of(did, false))
                 .collect(Collectors.toList());
     }
 
     public void kickDevice(Long userId, String deviceId) {
-        // 1. 从设备列表移除
-        Long removed = redisTemplate.opsForSet()
-                .remove("device_sessions:" + userId, deviceId);
-        if (removed == 0) {
+        String activeKey = "active_token:" + userId + ":" + deviceId;
+        String refreshKey = redisTemplate.opsForValue().get(activeKey);
+        if (refreshKey == null) {
             throw new BizException(404, "设备不在线");
         }
 
-        // 2. 作废该设备的所有 refresh token（遍历 user_tokens 反向索引）
-        String tokenSetKey = "user_tokens:" + userId;
-        Set<String> tokenKeys = redisTemplate.opsForSet().members(tokenSetKey);
-        if (tokenKeys != null) {
-            for (String tokenKey : tokenKeys) {
-                String val = redisTemplate.opsForValue().get(tokenKey);
-                if (val != null && val.endsWith(":" + deviceId)) {
-                    redisTemplate.delete(tokenKey);
-                    redisTemplate.opsForSet().remove(tokenSetKey, tokenKey);
-                }
-            }
-        }
+        redisTemplate.delete(refreshKey);
+        redisTemplate.delete(activeKey);
 
-        // 3. WebSocket 踢连接
         try {
             wsPushService.kickDevice(userId, deviceId);
         } catch (Exception e) {

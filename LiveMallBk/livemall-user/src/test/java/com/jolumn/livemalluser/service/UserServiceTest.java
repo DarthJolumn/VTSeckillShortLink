@@ -18,7 +18,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -126,10 +125,8 @@ class UserServiceTest {
         LoginRequest request = loginReq("zhangsan", "Test1234");
         User user = buildUser(1L, "zhangsan", REAL_HASH, 1);
         ValueOperations<String, String> valOps = mock(ValueOperations.class);
-        SetOperations<String, String> setOps = mock(SetOperations.class);
 
         when(redisTemplate.opsForValue()).thenReturn(valOps);
-        when(redisTemplate.opsForSet()).thenReturn(setOps);
         when(userMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(user);
         when(jwtUtil.generate(1L, 1, 900)).thenReturn("jwt.xxx");
 
@@ -139,8 +136,7 @@ class UserServiceTest {
         assertThat(resp.getRefreshToken()).startsWith("rft_");
         assertThat(resp.getExpiresIn()).isEqualTo(900);
         assertThat(resp.getTokenType()).isEqualTo("Bearer");
-        verify(valOps).set(anyString(), anyString(), eq(7L), eq(TimeUnit.DAYS));
-        verify(setOps).add(anyString(), eq("device-uuid"));
+        verify(valOps, times(2)).set(anyString(), anyString(), eq(7L), eq(TimeUnit.DAYS));
     }
 
     @Test
@@ -197,16 +193,14 @@ class UserServiceTest {
     @Test
     void logout_success() {
         ValueOperations<String, String> valOps = mock(ValueOperations.class);
-        SetOperations<String, String> setOps = mock(SetOperations.class);
 
         when(redisTemplate.opsForValue()).thenReturn(valOps);
-        when(redisTemplate.opsForSet()).thenReturn(setOps);
         when(valOps.get("refresh:rft_123")).thenReturn("1:1:device-abc");
 
         userService.logout("rft_123");
 
         verify(redisTemplate).delete("refresh:rft_123");
-        verify(setOps).remove("device_sessions:1", "device-abc");
+        verify(redisTemplate).delete("active_token:1:device-abc");
     }
 
     @Test
@@ -218,15 +212,13 @@ class UserServiceTest {
 
         userService.logout("rft_123");
 
-        verify(redisTemplate, never()).opsForSet();
+        verify(redisTemplate, never()).delete(eq("active_token:1:device-abc"));
     }
 
     @Test
     void getDevices_returnsList() {
-        SetOperations<String, String> setOps = mock(SetOperations.class);
-
-        when(redisTemplate.opsForSet()).thenReturn(setOps);
-        when(setOps.members("device_sessions:1")).thenReturn(Set.of("d1", "d2"));
+        when(redisTemplate.keys("active_token:1:*"))
+                .thenReturn(Set.of("active_token:1:d1", "active_token:1:d2"));
 
         var devices = userService.getDevices(1L);
 
@@ -237,10 +229,7 @@ class UserServiceTest {
 
     @Test
     void getDevices_emptySet_returnsEmptyList() {
-        SetOperations<String, String> setOps = mock(SetOperations.class);
-
-        when(redisTemplate.opsForSet()).thenReturn(setOps);
-        when(setOps.members("device_sessions:1")).thenReturn(Set.of());
+        when(redisTemplate.keys("active_token:1:*")).thenReturn(Set.of());
 
         var devices = userService.getDevices(1L);
 

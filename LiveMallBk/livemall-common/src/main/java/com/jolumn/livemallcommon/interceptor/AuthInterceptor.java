@@ -53,9 +53,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // 设备在线检查：被踢设备即使 JWT 未过期也拒绝访问
         if (userId != null && deviceId != null && !deviceId.isBlank()) {
-            Boolean inSession = redisTemplate.opsForSet()
-                    .isMember("device_sessions:" + userId, deviceId);
-            if (Boolean.FALSE.equals(inSession)) {
+            Boolean exists = redisTemplate.hasKey("active_token:" + userId + ":" + deviceId);
+            if (Boolean.FALSE.equals(exists)) {
                 sendUnauthorized(response, "设备已被踢下线");
                 return false;
             }
