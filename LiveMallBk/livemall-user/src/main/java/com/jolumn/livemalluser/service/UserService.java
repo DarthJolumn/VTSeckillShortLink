@@ -102,7 +102,7 @@ public class UserService {
         }
         log.info("登录成功, userId={}, username={}", user.getId(), username);
 
-        String accessToken = jwtUtil.generate(user.getId(), user.getRole(), 900);
+        String accessToken = jwtUtil.generate(user.getId(), user.getRole(), 86400);
         String refreshToken = "rft_" + UUID.randomUUID().toString().replace("-", "");
         String refreshKey = "refresh:" + refreshToken;
         String activeKey = "active_token:" + user.getId() + ":" + deviceId;
@@ -198,7 +198,7 @@ public class UserService {
             String deviceId = parts[2];
 
             // 签发新 Access Token
-            String newAccessToken = jwtUtil.generate(userId, role, 900);
+            String newAccessToken = jwtUtil.generate(userId, role, 86400);
 
             // 新 Refresh Token（Rotation）
             String newRefreshToken = "rft_" + UUID.randomUUID().toString().replace("-", "");

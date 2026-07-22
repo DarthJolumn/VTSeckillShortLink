@@ -48,7 +48,7 @@ function preRefreshIfNeeded(): void {
 }
 
 // ----- 请求拦截器 -----
-http.interceptors.request.use((config) => {
+http.interceptors.request.use(async (config) => {
   const c = config as RetryableConfig & { headers: NonNullable<typeof config.headers> }
   c._start = Date.now()
   c.headers['X-Device-Id'] = getDeviceId()
@@ -57,12 +57,21 @@ http.interceptors.request.use((config) => {
   }
   const isPublicAuth = c.url && /\/auth\/(login|register|refresh)$/.test(c.url)
   if (!isPublicAuth) {
+    const at = localStorage.getItem('accessToken')
+    if (at) {
+      const payload = parseJwt(at)
+      if (payload && typeof payload.exp === 'number') {
+        const remaining = payload.exp * 1000 - Date.now()
+        if (remaining <= 0) {
+          // AT 已过期 → 阻塞刷新，失败则不带新 AT 由响应拦截器兜底 401
+          await refreshTokenOnce().catch(() => {})
+        } else {
+          preRefreshIfNeeded()
+        }
+      }
+    }
     const token = localStorage.getItem('accessToken')
     if (token) c.headers.Authorization = `Bearer ${token}`
-  }
-  // 非鉴权接口 → 预刷新
-  if (!isPublicAuth) {
-    preRefreshIfNeeded()
   }
   const authHeader = typeof c.headers.Authorization === 'string' ? c.headers.Authorization : ''
   console.log(`[http] ${(c.method || '?').toUpperCase()} ${c.url} token=${authHeader.slice(0, 20)}...`)

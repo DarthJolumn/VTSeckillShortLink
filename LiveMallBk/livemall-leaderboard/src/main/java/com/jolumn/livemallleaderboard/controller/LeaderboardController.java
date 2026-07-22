@@ -18,6 +18,14 @@ public class LeaderboardController {
         this.service = service;
     }
 
+    /** 加分（压测用 + 模拟礼物/点赞/观看/评论/分享） */
+    @PostMapping("/score")
+    public Result<Boolean> addScore(@RequestParam Long activityId,
+                                    @RequestParam Long userId,
+                                    @RequestParam(defaultValue = "WATCH") String eventType) {
+        return Result.ok(service.addScore(activityId, userId, eventType));
+    }
+
     /** 实时 TopN */
     @GetMapping("/top")
     public Result<List<RankEntry>> topN(@RequestParam Long activityId,

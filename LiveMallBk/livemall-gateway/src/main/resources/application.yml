@@ -3,6 +3,9 @@
 # ===================================================================
 server:
   port: 8080
+  netty:
+    max-connections: 16384
+    connection-timeout: 5000
 
 spring:
   application:

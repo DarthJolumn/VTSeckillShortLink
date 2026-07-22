@@ -155,14 +155,11 @@ onMounted(async () => {
     return
   }
 
-  // 2. 秒杀活动 + 排行榜（用活动 ID 拉榜）
+  // 2. 秒杀活动 + 排行榜（后端 addScore 用 roomId 做 key，前端也用 roomId 查）
   try {
     await seckillStore.fetchActivities(roomId)
-    const act = activeSeckill.value ?? seckillStore.activities[0]
-    if (act) {
-      lbStore.fetchTopN(act.id).catch(() => {})
-      if (auth.user) lbStore.fetchMyRank(act.id, auth.user.id).catch(() => {})
-    }
+    lbStore.fetchTopN(roomId).catch(() => {})
+    if (auth.user) lbStore.fetchMyRank(roomId, auth.user.id).catch(() => {})
   } catch { /* 秒杀/榜单失败不阻塞 */ }
 
   // 3. WebSocket（匿名可连；已登录带 token）
@@ -174,11 +171,10 @@ onMounted(async () => {
     kicked.value = true
   })
 
-  // 礼物 → 播特效 + 刷新排行榜
+  // 礼物 → 播特效 + 刷新排行榜（key 是 roomId）
   onGift((gift) => {
     pushGiftEffect(gift)
-    const act = activeSeckill.value
-    if (act) lbStore.fetchTopN(act.id).catch(() => {})
+    lbStore.fetchTopN(roomId).catch(() => {})
   })
 
   // 房间关闭 / 需要登录提示
