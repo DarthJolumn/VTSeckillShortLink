@@ -94,28 +94,16 @@ export const useSeckillStore = defineStore('seckill', () => {
   }
 
   /**
-   * 下单 + 等待 WS 异步确认闭环：
-   * 1. POST 扣库存 → result:ok 仅表示排队中
-   * 2. 注册 orderNo 回调，等 SEC_KILL_RESULT（15s 超时）
+   * 下单：POST 扣库存成功即算抢购成功。
+   * SEC_KILL_RESULT 由后端 Kafka 异步推送，此处不等待。
    */
-  async function placeOrder(activityId: number): Promise<SecKillResultData> {
+  async function placeOrder(activityId: number): Promise<{ orderNo: string }> {
     const res = await post<PlaceOrderResponse>('/seckill/order', { activityId })
     if (res.data.result !== 'ok') {
-      throw new Error(res.data.result || '下单失败')
+      throw new Error('抢购失败')
     }
-    const orderNo = res.data.orderNo
-    orderPhase.value = 'queuing'
-    return new Promise<SecKillResultData>((resolve, reject) => {
-      registerOrderCallback(orderNo, (msg) => {
-        if (msg.ok) {
-          orderPhase.value = 'success'
-          resolve(msg)
-        } else {
-          orderPhase.value = 'failed'
-          reject(new Error(msg.message || msg.reason || '抢购失败'))
-        }
-      })
-    })
+    orderPhase.value = 'success'
+    return { orderNo: res.data.orderNo }
   }
 
   async function fetchOrders() {

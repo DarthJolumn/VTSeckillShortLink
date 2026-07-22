@@ -99,20 +99,13 @@ const props = defineProps<{
 const seckillStore = useSeckillStore()
 const roomStore = useRoomStore()
 
-const now = Date.now()
-const toLocalInput = (ts: number) => {
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 const form = reactive({
   name: '',
   price: 9.9,
   origPrice: 99,
   stockTotal: 100,
-  startAt: toLocalInput(now + 3600_000),
-  endAt: toLocalInput(now + 7200_000),
+  countdownSec: 60,
+  durationSec: 3600,
   productId: 1001,
 })
 
@@ -145,9 +138,11 @@ async function onCreate() {
   if (!form.name) { showToast('请填写活动名称', 'warning'); return }
   if (form.price <= 0 || form.origPrice <= 0) { showToast('价格必须大于 0', 'warning'); return }
   if (form.stockTotal <= 0) { showToast('库存必须大于 0', 'warning'); return }
-  const startAt = new Date(form.startAt).getTime()
-  const endAt = new Date(form.endAt).getTime()
-  if (startAt >= endAt) { showToast('开始时间不能晚于结束时间', 'warning'); return }
+  if (form.countdownSec < 0) { showToast('倒计时不能为负数', 'warning'); return }
+  if (form.durationSec <= 0) { showToast('持续时间必须大于 0', 'warning'); return }
+
+  const startAt = Date.now() + form.countdownSec * 1000
+  const endAt = startAt + form.durationSec * 1000
 
   creating.value = true
   try {
