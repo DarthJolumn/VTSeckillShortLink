@@ -23,6 +23,30 @@ interface RetryableConfig extends AxiosRequestConfig {
   _start?: number
 }
 
+/** 解析 JWT payload，返回 JSON 对象 */
+function parseJwt(token: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(atob(token.split('.')[1]))
+  } catch {
+    return null
+  }
+}
+
+let preRefreshing: Promise<void> | null = null
+
+/** 在请求拦截器中预刷新：AT 剩不到 5 分钟时异步续期 */
+function preRefreshIfNeeded(): void {
+  if (preRefreshing) return
+  const at = localStorage.getItem('accessToken')
+  if (!at) return
+  const payload = parseJwt(at)
+  if (!payload || typeof payload.exp !== 'number') return
+  const remaining = payload.exp * 1000 - Date.now()
+  if (remaining < 5 * 60 * 1000) {
+    preRefreshing = refreshTokenOnce().catch(() => {}).finally(() => { preRefreshing = null })
+  }
+}
+
 // ----- 请求拦截器 -----
 http.interceptors.request.use((config) => {
   const c = config as RetryableConfig & { headers: NonNullable<typeof config.headers> }
@@ -31,13 +55,21 @@ http.interceptors.request.use((config) => {
   if (['post', 'put', 'delete'].includes((c.method || '').toLowerCase())) {
     c.headers['X-Idempotency-Key'] = crypto.randomUUID()
   }
-  const token = localStorage.getItem('accessToken')
-  if (token) c.headers.Authorization = `Bearer ${token}`
-  console.log(`[http] ${(c.method || '?').toUpperCase()} ${c.url} token=${token ? token.slice(0, 15) + '...' : 'MISSING'}`)
+  const isPublicAuth = c.url && /\/auth\/(login|register|refresh)$/.test(c.url)
+  if (!isPublicAuth) {
+    const token = localStorage.getItem('accessToken')
+    if (token) c.headers.Authorization = `Bearer ${token}`
+  }
+  // 非鉴权接口 → 预刷新
+  if (!isPublicAuth) {
+    preRefreshIfNeeded()
+  }
+  const authHeader = typeof c.headers.Authorization === 'string' ? c.headers.Authorization : ''
+  console.log(`[http] ${(c.method || '?').toUpperCase()} ${c.url} token=${authHeader.slice(0, 20)}...`)
   return c
 })
 
-// ----- 响应拦截器（双 Token 自动刷新，联调文档 §2.2）-----
+// ----- 双 Token 自动刷新（联调文档 §2.2）-----
 let isRefreshing = false
 let pendingQueue: Array<() => void> = []
 
@@ -47,6 +79,32 @@ async function redirectToLogin(): Promise<void> {
   const { default: router } = await import('@/router')
   if (router.currentRoute.value.path !== '/login') {
     router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+  }
+}
+
+async function refreshTokenOnce(): Promise<void> {
+  if (isRefreshing) {
+    return new Promise((resolve) => pendingQueue.push(resolve))
+  }
+  isRefreshing = true
+  const rt = localStorage.getItem('refreshToken')
+  if (!rt) {
+    isRefreshing = false
+    throw new ApiError(1013, '登录已过期，请重新登录')
+  }
+  try {
+    const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/refresh', {
+      refreshToken: rt,
+    })
+    localStorage.setItem('accessToken', data.data.accessToken)
+    localStorage.setItem('refreshToken', data.data.refreshToken)
+  } catch (e) {
+    throw e instanceof ApiError ? e : new ApiError(1013, '登录已过期，请重新登录')
+  } finally {
+    const queue = pendingQueue.slice()
+    pendingQueue = []
+    queue.forEach((cb) => { try { cb() } catch {} })
+    isRefreshing = false
   }
 }
 
@@ -79,37 +137,15 @@ http.interceptors.response.use(
       return Promise.reject(new ApiError(1013, '登录已过期，请重新登录'))
     }
 
-    // 并发 401 合并：排队等待唯一的一次 refresh
-    if (isRefreshing) {
-      return new Promise((resolve) => {
-        pendingQueue.push(() => resolve(http(config)))
-      })
-    }
-
     config._retry = true
-    isRefreshing = true
-    const rt = localStorage.getItem('refreshToken')
-    if (!rt) {
-      pendingQueue = []
-      await redirectToLogin()
-      return Promise.reject(new ApiError(1013, '登录已过期，请重新登录'))
-    }
     try {
-      const { data } = await http.post<ApiResponse<LoginResponse>>('/auth/refresh', {
-        refreshToken: rt,
-      })
-      localStorage.setItem('accessToken', data.data.accessToken)
-      localStorage.setItem('refreshToken', data.data.refreshToken)
-      pendingQueue.forEach((cb) => cb())
-      pendingQueue = []
-      config.headers = { ...config.headers, Authorization: `Bearer ${data.data.accessToken}` }
+      await refreshTokenOnce()
+      const newAt = localStorage.getItem('accessToken')
+      if (newAt) config.headers = { ...config.headers, Authorization: `Bearer ${newAt}` }
       return http(config)
     } catch (e) {
-      pendingQueue = []
       await redirectToLogin()
       return Promise.reject(e instanceof ApiError ? e : new ApiError(1013, '登录已过期，请重新登录'))
-    } finally {
-      isRefreshing = false
     }
   },
 )
