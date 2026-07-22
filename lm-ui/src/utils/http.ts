@@ -27,15 +27,13 @@ interface RetryableConfig extends AxiosRequestConfig {
 http.interceptors.request.use((config) => {
   const c = config as RetryableConfig & { headers: NonNullable<typeof config.headers> }
   c._start = Date.now()
-  // 1. 设备指纹（所有请求）
   c.headers['X-Device-Id'] = getDeviceId()
-  // 2. 幂等键（仅写操作）
   if (['post', 'put', 'delete'].includes((c.method || '').toLowerCase())) {
     c.headers['X-Idempotency-Key'] = crypto.randomUUID()
   }
-  // 3. 认证 Token
   const token = localStorage.getItem('accessToken')
   if (token) c.headers.Authorization = `Bearer ${token}`
+  console.log(`[http] ${(c.method || '?').toUpperCase()} ${c.url} token=${token ? token.slice(0, 15) + '...' : 'MISSING'}`)
   return c
 })
 

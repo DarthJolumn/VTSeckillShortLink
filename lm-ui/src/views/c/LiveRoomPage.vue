@@ -23,12 +23,10 @@
           </div>
         </div>
 
-        <!-- 视频区（占位块，真实流地址联调后接入播放器） -->
-        <div class="video-area" :style="{ background: videoBg }">
-          <div class="video-placeholder">
-            <span class="play-icon">▶</span>
-            <p>{{ roomStore.currentRoom?.status === 1 ? '直播信号加载中...' : '直播已结束' }}</p>
-          </div>
+        <!-- 视频区 -->
+        <div class="video-area">
+          <!-- Demo 模式：使用公开测试流，后续替换为后端 /live/stream/{roomId} 接口 -->
+          <LivePlayer stream-url="https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8" />
 
           <!-- 礼物特效层 -->
           <GiftEffect />
@@ -90,6 +88,7 @@ import LeaderboardTab from '@/components/LeaderboardTab.vue'
 import SeckillDrawer from '@/components/SeckillDrawer.vue'
 import KickOverlay from '@/components/KickOverlay.vue'
 import GiftEffect from '@/components/GiftEffect.vue'
+import LivePlayer from '@/components/LivePlayer.vue'
 import { useRoomStore } from '@/stores/room'
 import { useSeckillStore } from '@/stores/seckill'
 import { useLeaderboardStore } from '@/stores/leaderboard'

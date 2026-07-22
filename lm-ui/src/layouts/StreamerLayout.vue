@@ -59,5 +59,10 @@
 }
 .side-link:hover { background: var(--bg-primary); color: var(--text-primary); }
 .side-link.active { background: rgba(255, 44, 85, 0.12); color: var(--accent-red); }
-.content { flex: 1; min-width: 0; }
+.content {
+  flex: 1;
+  min-width: 0;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
 </style>

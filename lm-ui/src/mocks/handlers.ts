@@ -197,11 +197,14 @@ export const handlers = [
   }),
 
   // ===== 秒杀 =====
+  // 与后端对齐：传 roomId → 仅该房间进行中；不传 → 全部活动
   http.get('/api/seckill/activity/list', async ({ request }) => {
     await delay(250)
     const url = new URL(request.url)
     const roomId = url.searchParams.get('roomId')
-    const list = roomId ? mockActivities.filter(a => a.roomId === Number(roomId)) : mockActivities
+    const list = roomId
+      ? mockActivities.filter(a => a.roomId === Number(roomId) && a.status === 1)
+      : mockActivities
     return HttpResponse.json(ok(list))
   }),
 

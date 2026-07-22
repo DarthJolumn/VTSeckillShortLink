@@ -30,12 +30,12 @@
         </div>
         <div class="row-2">
           <label>
-            开始时间
-            <input v-model="form.startAt" class="input-dark" type="datetime-local" />
+            倒计时（秒）
+            <input v-model.number="form.countdownSec" class="input-dark" type="number" min="0" step="1" />
           </label>
           <label>
-            结束时间
-            <input v-model="form.endAt" class="input-dark" type="datetime-local" />
+            持续时间（秒）
+            <input v-model.number="form.durationSec" class="input-dark" type="number" min="1" step="1" />
           </label>
         </div>
         <button class="btn-primary submit" type="submit" :disabled="creating">
@@ -48,7 +48,7 @@
     <div class="panel-section">
       <div class="list-head">
         <h4>活动列表</h4>
-        <button class="btn-ghost refresh" @click="loadList">刷新</button>
+        <button class="btn-ghost refresh" @click="onRefresh">刷新</button>
       </div>
 
       <div v-if="seckillStore.activities.length === 0" class="empty">暂无活动</div>
@@ -121,11 +121,24 @@ const creating = ref(false)
 onMounted(loadList)
 
 async function loadList() {
+  console.log('[SeckillPanel] loadList 开始, roomId=', props.roomId)
   try {
-    await seckillStore.fetchActivities(props.roomId)
+    const count = await seckillStore.fetchActivities(props.roomId)
+    console.log('[SeckillPanel] 获取成功, 条数:', count)
   } catch (e) {
-    showToast(e instanceof ApiError ? e.message : '加载失败', 'error')
+    console.error('[SeckillPanel] 获取失败:', e)
+    showToast(e instanceof ApiError ? e.message : '加载失败', 'error', 8000)
   }
+}
+
+function scrollToList() {
+  const el = document.querySelector('.list-head')
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function onRefresh() {
+  await loadList()
+  scrollToList()
 }
 
 async function onCreate() {
@@ -151,6 +164,7 @@ async function onCreate() {
     showToast('活动已创建', 'success')
     form.name = ''
     await loadList()
+    scrollToList()
   } catch (e) {
     showToast(e instanceof ApiError ? e.message : '创建失败', 'error')
   } finally {
@@ -163,6 +177,7 @@ async function onUpdateStatus(id: number, status: number) {
     await seckillStore.updateActivityStatus(id, status)
     showToast(status === 1 ? '已上架' : '已下架', 'success')
     await loadList()
+    scrollToList()
   } catch (e) {
     showToast(e instanceof ApiError ? e.message : '操作失败', 'error')
   }
@@ -177,10 +192,31 @@ function statusClass(s: number) {
 </script>
 
 <style scoped>
-.seckill-panel { display: flex; flex-direction: column; gap: 16px; }
-.panel-section { padding: 12px 0; }
-.panel-section + .panel-section { border-top: 1px solid var(--border); }
-h4 { font-size: 14px; margin-bottom: 12px; color: var(--text-primary); }
+.seckill-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+  min-height: 0;
+}
+.panel-section {
+  padding: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel-section:first-child {
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
+}
+.panel-section:last-child {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.panel-section + .panel-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+h4 { font-size: 14px; margin-bottom: 12px; color: var(--text-primary); flex-shrink: 0; }
 
 .create-form { display: flex; flex-direction: column; gap: 10px; }
 .create-form label {
@@ -191,13 +227,14 @@ h4 { font-size: 14px; margin-bottom: 12px; color: var(--text-primary); }
   color: var(--text-secondary);
 }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.submit { margin-top: 4px; padding: 8px 16px; font-size: 13px; }
+.submit { margin-top: 4px; padding: 8px 16px; font-size: 13px; flex-shrink: 0; }
 
-.list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-shrink: 0; }
 .refresh { padding: 4px 10px; font-size: 12px; }
 .empty { text-align: center; color: var(--text-secondary); padding: 24px 0; font-size: 12px; }
 
 .act-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.act-table thead { position: sticky; top: 0; background: var(--bg-secondary); z-index: 1; }
 .act-table th {
   text-align: left;
   color: var(--text-secondary);

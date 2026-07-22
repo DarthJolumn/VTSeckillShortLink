@@ -70,10 +70,13 @@ export const useSeckillStore = defineStore('seckill', () => {
    * B 端管理页需要全量状态是后端待补能力，Mock 按全量返回。
    */
   async function fetchActivities(roomId?: number) {
+    console.log('[seckillStore] fetchActivities 请求发出, roomId:', roomId)
     const res = await get<SeckillActivity[]>('/seckill/activity/list', {
       params: roomId ? { roomId } : {},
     })
+    console.log('[seckillStore] fetchActivities 响应:', JSON.stringify(res).slice(0, 300))
     activities.value = res.data
+    return activities.value.length
   }
 
   /** 创建活动（B 端）。字段名即后端 DTO 字段：name/price/origPrice/stockTotal/startAt/endAt */
