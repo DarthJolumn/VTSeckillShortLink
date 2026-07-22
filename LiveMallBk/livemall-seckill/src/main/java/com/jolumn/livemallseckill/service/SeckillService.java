@@ -160,12 +160,12 @@ public class SeckillService {
         orderRepo.save(order);
     }
 
-    /** 查询活动列表（可选 roomId 过滤） */
+    /** 查询活动列表。传 roomId → 仅该房间进行中（C 端用），不传 → 全部（管理端用） */
     public List<SeckillActivity> getActivities(Long roomId) {
         if (roomId != null) {
             return activityRepo.findByRoomIdAndStatusOrderByStartTimeAsc(roomId, 1);
         }
-        return activityRepo.findByStatusOrderByStartTimeAsc(1);
+        return activityRepo.findAllByOrderByStartTimeDesc();
     }
 
     /** 查询进行中的活动 */
