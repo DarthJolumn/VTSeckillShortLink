@@ -46,10 +46,19 @@ public class SeckillService {
         return activityRepo.save(activity);
     }
 
-    /** 查询活动详情 */
+    /** 查询活动详情（走 DB — 管理端查询用） */
     public SeckillActivity getActivity(Long activityId) {
         return activityRepo.findById(activityId)
                 .orElseThrow(() -> new BizException(404, "活动不存在"));
+    }
+
+    /** 查询活动详情（走 Caffeine 缓存 L1 — 下单降级路径用，避免直接穿透 DB） */
+    public SeckillActivity getActivityCached(Long activityId) {
+        SeckillActivity activity = cacheService.getActivity(activityId);
+        if (activity == null) {
+            throw new BizException(404, "活动不存在");
+        }
+        return activity;
     }
 
     /** 更新活动状态（0:待开始 1:进行中 2:已结束 3:已取消）。上架(→1)时初始化 Redis 库存分片 */

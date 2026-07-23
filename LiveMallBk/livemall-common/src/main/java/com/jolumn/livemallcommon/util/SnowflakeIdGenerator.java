@@ -21,7 +21,7 @@ public class SnowflakeIdGenerator {
 
     private final long workerId;
     private final ReentrantLock lock = new ReentrantLock();
-    private long lastTimestamp = -1L;
+    private long lastTimestamp = -1L; // 上次生成时间戳: 1标记上次 2并发sequence++
     private long sequence = 0L;
 
     public SnowflakeIdGenerator(@Value("${worker.id:1}") long workerId) {
@@ -32,6 +32,8 @@ public class SnowflakeIdGenerator {
         lock.lock();
         try {
             long timestamp = System.currentTimeMillis();
+            // 时间回退,也就是服务器时间变动
+            // 一般不会出现
             if (timestamp < lastTimestamp) {
                 long offset = lastTimestamp - timestamp;
                 if (offset <= 30) {
@@ -41,6 +43,7 @@ public class SnowflakeIdGenerator {
                     throw new RuntimeException("时钟回拨超过 30ms: " + offset + "ms");
                 }
             }
+            // 高并发处理
             if (timestamp == lastTimestamp) {
                 sequence = (sequence + 1) & MAX_SEQUENCE;
                 if (sequence == 0) timestamp = waitNextMillis(lastTimestamp);

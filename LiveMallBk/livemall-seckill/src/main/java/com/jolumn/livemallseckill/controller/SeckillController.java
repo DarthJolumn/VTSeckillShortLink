@@ -6,6 +6,7 @@ import com.jolumn.livemallcommon.util.SnowflakeIdGenerator;
 import com.jolumn.livemallseckill.dto.CreateActivityRequest;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.entity.SeckillOrder;
+import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.SeckillService;
 import com.jolumn.livemallseckill.service.StockService;
 import jakarta.validation.Valid;
@@ -28,6 +29,7 @@ public class SeckillController {
     private final SeckillService seckillService;
     private final SnowflakeIdGenerator idGenerator;
     @Autowired private StockService stockService;
+    @Autowired private ActivityCacheService cacheService;
     @Autowired(required = false) private KafkaTemplate<String, String> kafkaTemplate;
 
     public SeckillController(SeckillService seckillService,
@@ -78,13 +80,27 @@ public class SeckillController {
                     kafkaTemplate.send("seckill-order", msg).get(3, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     log.warn("Kafka 不可用, 降级同步创建订单: activityId={}, userId={}", activityId, userId);
-                    SeckillActivity activity = seckillService.getActivity(activityId);
-                    seckillService.createOrder(activity, userId, orderNo);
+                    try {
+                        SeckillActivity activity = seckillService.getActivityCached(activityId);
+                        seckillService.createOrder(activity, userId, orderNo);
+                    } catch (Exception dbEx) {
+                        log.error("同步下单失败，回补库存: userId={}, orderNo={}", userId, orderNo);
+                        stockService.refund(activityId, userId);
+                        cacheService.markInStock(activityId);
+                        throw new BizException(500, "系统繁忙，请稍后重试");
+                    }
                 }
             } else {
                 // 无 Kafka bean，直接同步创建订单
-                SeckillActivity activity = seckillService.getActivity(activityId);
-                seckillService.createOrder(activity, userId, orderNo);
+                try {
+                    SeckillActivity activity = seckillService.getActivityCached(activityId);
+                    seckillService.createOrder(activity, userId, orderNo);
+                } catch (Exception e) {
+                    log.error("同步下单失败，回补库存: userId={}, orderNo={}", userId, orderNo);
+                    stockService.refund(activityId, userId);
+                    cacheService.markInStock(activityId);
+                    throw new BizException(500, "系统繁忙，请稍后重试");
+                }
             }
         }
         return Result.ok(java.util.Map.of("result", result, "orderNo", orderNo));
