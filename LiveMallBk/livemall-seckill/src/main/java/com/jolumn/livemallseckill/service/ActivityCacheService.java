@@ -8,18 +8,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 多级缓存: Caffeine L1 + Redis + MySQL。
- * L1 缓存活动信息(5s) + 售罄标记(本地快速拒绝, 减少 90% Redis 查询)。
- * 注意: 售罄标记有最多 5s 延迟, 但 Redis Lua 最终防超卖。
+ * 活动信息: refreshAfterWrite(5s) + expireAfterAccess(30s) → 过期返回旧值 + 后台异步刷新
+ * 售罄标记: expireAfterWrite(1s) → 自动过期，多节点弱一致
+ * 注意: 售罄标记有最多 1s 延迟, 但 Redis Lua 最终防超卖。
  */
 @Service
 public class ActivityCacheService {
 
     private final Cache<Long, SeckillActivity> activityCache;
-    private final ConcurrentHashMap<Long, Boolean> soldOutFlags = new ConcurrentHashMap<>();
+    private final Cache<Long, Boolean> soldOutCache;
     private final SeckillActivityRepository activityRepo;
 
     public ActivityCacheService(SeckillActivityRepository activityRepo,
@@ -27,34 +27,39 @@ public class ActivityCacheService {
                                  @Value("${seckill.activity-cache.max-size:1000}") int maxSize) {
         this.activityRepo = activityRepo;
         this.activityCache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofSeconds(ttlSeconds))
+                .refreshAfterWrite(Duration.ofSeconds(ttlSeconds))
+                .expireAfterAccess(Duration.ofSeconds(30))
+                .maximumSize(maxSize)
+                .build();
+        this.soldOutCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofSeconds(1))
                 .maximumSize(maxSize)
                 .build();
     }
 
-    /** Caffeine 缓存活动信息, 5s 过期 */
+    /** Caffeine 缓存活动信息。过期返回旧值+后台异步加载，永不阻塞 */
     public SeckillActivity getActivity(Long activityId) {
         return activityCache.get(activityId,
                 id -> activityRepo.findById(id).orElse(null));
     }
 
-    /** 标记售罄 (本地快速拒绝) */
+    /** 标记售罄 (1s TTL, 自动过期) */
     public void markSoldOut(Long activityId) {
-        soldOutFlags.put(activityId, true);
+        soldOutCache.put(activityId, Boolean.TRUE);
     }
 
-    /** 恢复库存 (回补时调用) */
+    /** 恢复库存 (回补时清除标记) */
     public void markInStock(Long activityId) {
-        soldOutFlags.remove(activityId);
+        soldOutCache.invalidate(activityId);
     }
 
     /** 快速售罄检查。true=本地标记已售罄, 直接拒绝 */
     public boolean isSoldOut(Long activityId) {
-        return Boolean.TRUE.equals(soldOutFlags.get(activityId));
+        return Boolean.TRUE.equals(soldOutCache.getIfPresent(activityId));
     }
 
-    /** 刷新缓存 */
+    /** 预热/刷新缓存：从 DB 加载并写入 Caffeine（上架时调用） */
     public void refresh(Long activityId) {
-        activityCache.invalidate(activityId);
+        activityRepo.findById(activityId).ifPresent(a -> activityCache.put(activityId, a));
     }
 }

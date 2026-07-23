@@ -23,15 +23,18 @@ public class SeckillService {
     private final SeckillOrderRepository orderRepo;
     private final StockService stockService;
     private final ActivityCacheService cacheService;
+    private final ActivityBloomFilter bloomFilter;
 
     public SeckillService(SeckillActivityRepository activityRepo,
                           SeckillOrderRepository orderRepo,
                           StockService stockService,
-                          ActivityCacheService cacheService) {
+                          ActivityCacheService cacheService,
+                          ActivityBloomFilter bloomFilter) {
         this.activityRepo = activityRepo;
         this.orderRepo = orderRepo;
         this.stockService = stockService;
         this.cacheService = cacheService;
+        this.bloomFilter = bloomFilter;
     }
 
     /** 创建秒杀活动（管理员） */
@@ -79,8 +82,13 @@ public class SeckillService {
         }
     }
 
-    /** 抢购下单。L1 Caffeine 快速售罄检查，减少 90% Redis 查询 */
+    /** 抢购下单。Bloom → Caffeine L1 → Redis Lua → Kafka */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
+        // 0. 布隆过滤器 — 快速拒绝无效 activityId
+        if (!bloomFilter.mightContain(activityId)) {
+            throw new BizException(404, "活动不存在");
+        }
+
         // Caffeine L1 快速售罄检查
         if (cacheService.isSoldOut(activityId)) {
             throw new BizException(1009, "库存不足");

@@ -2,6 +2,7 @@ package com.jolumn.livemallseckill.repository;
 
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
@@ -15,4 +16,8 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
     List<SeckillActivity> findAllByOrderByStartTimeDesc();
 
     List<SeckillActivity> findByStatusAndEndTimeBefore(Integer status, java.time.LocalDateTime time);
+
+    /** 查询所有活动 ID（布隆过滤器重建用） */
+    @Query("SELECT id FROM SeckillActivity")
+    List<Long> findAllIds();
 }

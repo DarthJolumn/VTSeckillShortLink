@@ -33,7 +33,7 @@ class SeckillServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new SeckillService(activityRepo, orderRepo, stockService, cacheService);
+        service = new SeckillService(activityRepo, orderRepo, stockService, cacheService,null);
     }
 
     @Test
