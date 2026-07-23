@@ -19,6 +19,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,12 +29,14 @@ class SeckillServiceTest {
     @Mock private SeckillOrderRepository orderRepo;
     @Mock private StockService stockService;
     @Mock private ActivityCacheService cacheService;
+    @Mock private ActivityBloomFilter bloomFilter;
 
     private SeckillService service;
 
     @BeforeEach
     void setUp() {
-        service = new SeckillService(activityRepo, orderRepo, stockService, cacheService,null);
+        service = new SeckillService(activityRepo, orderRepo, stockService, cacheService, bloomFilter);
+        lenient().when(bloomFilter.mightContain(anyLong())).thenReturn(true);
     }
 
     @Test

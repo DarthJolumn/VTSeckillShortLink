@@ -17,7 +17,7 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
 
     List<SeckillActivity> findByStatusAndEndTimeBefore(Integer status, java.time.LocalDateTime time);
 
-    /** 查询所有活动 ID（布隆过滤器重建用） */
-    @Query("SELECT id FROM SeckillActivity")
-    List<Long> findAllIds();
+    /** 查询进行中的活动 ID（布隆过滤器重建用） */
+    @Query("SELECT id FROM SeckillActivity WHERE status = 1")
+    List<Long> findActiveIds();
 }

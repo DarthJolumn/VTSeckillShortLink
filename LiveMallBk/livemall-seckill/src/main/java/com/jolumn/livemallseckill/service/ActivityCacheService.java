@@ -2,6 +2,7 @@ package com.jolumn.livemallseckill.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.repository.SeckillActivityRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +19,7 @@ import java.time.Duration;
 @Service
 public class ActivityCacheService {
 
-    private final Cache<Long, SeckillActivity> activityCache;
+    private final LoadingCache<Long, SeckillActivity> activityCache;
     private final Cache<Long, Boolean> soldOutCache;
     private final SeckillActivityRepository activityRepo;
 
@@ -30,17 +31,16 @@ public class ActivityCacheService {
                 .refreshAfterWrite(Duration.ofSeconds(ttlSeconds))
                 .expireAfterAccess(Duration.ofSeconds(30))
                 .maximumSize(maxSize)
-                .build();
+                .build(id -> activityRepo.findById(id).orElse(null));
         this.soldOutCache = Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofSeconds(1))
                 .maximumSize(maxSize)
                 .build();
     }
 
-    /** Caffeine 缓存活动信息。过期返回旧值+后台异步加载，永不阻塞 */
+    /** Caffeine LoadingCache 自动加载活动信息。refreshAfterWrite 后台异步刷新，永不阻塞 */
     public SeckillActivity getActivity(Long activityId) {
-        return activityCache.get(activityId,
-                id -> activityRepo.findById(id).orElse(null));
+        return activityCache.get(activityId);
     }
 
     /** 标记售罄 (1s TTL, 自动过期) */

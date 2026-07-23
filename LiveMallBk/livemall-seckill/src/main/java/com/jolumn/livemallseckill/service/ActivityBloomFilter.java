@@ -33,14 +33,20 @@ public class ActivityBloomFilter {
 
     @Scheduled(fixedDelay = 60_000)
     public void rebuild() {
-        List<Long> ids = activityRepo.findAllIds();
+        List<Long> ids = activityRepo.findActiveIds();
         BloomFilter<Long> newFilter = BloomFilter.create(
                 Funnels.longFunnel(), Math.max(ids.size(), MIN_SIZE), FPP);
         for (Long id : ids) {
             newFilter.put(id);
         }
         filterRef.set(newFilter);
-        log.info("布隆过滤器重建完成: {} 个活动 ID, 误判率={}", ids.size(), FPP);
+        log.info("布隆过滤器重建完成: {} 个进行中活动 ID, 误判率={}", ids.size(), FPP);
+    }
+
+    /** 上架时即时插入，不必等 60s 重建窗口 */
+    public void add(Long activityId) {
+        BloomFilter<Long> f = filterRef.get();
+        if (f != null) f.put(activityId);
     }
 
     public boolean mightContain(Long activityId) {

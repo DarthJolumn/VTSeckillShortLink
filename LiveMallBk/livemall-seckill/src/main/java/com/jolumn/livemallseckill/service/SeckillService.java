@@ -79,6 +79,7 @@ public class SeckillService {
             stockService.initStock(activityId, activity.getTotalStock());
             cacheService.markInStock(activityId);
             cacheService.refresh(activityId);
+            bloomFilter.add(activityId);
         }
     }
 
