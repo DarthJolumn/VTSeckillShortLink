@@ -5,7 +5,9 @@ import com.jolumn.livemallcommon.grpc.SeckillPushOuterClass;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.SeckillService;
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -32,7 +34,7 @@ public class SeckillOrderConsumer {
     }
 
     @KafkaListener(topics = "seckill-order", groupId = "livemall-seckill")
-    public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack) {
+    public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack, Consumer<?, ?> consumer) {
         Thread.startVirtualThread(() -> {
             try {
                 String[] parts = record.value().split(":", 3);
@@ -76,8 +78,12 @@ public class SeckillOrderConsumer {
                 log.warn("重复订单（幂等兜底）: orderNo={}", e.getMessage());
                 ack.acknowledge(); // 不可重试，直接 ack 跳过
             } catch (DataAccessException e) {
-                log.error("DB 不可用, 暂停消费等待重试: {}", e.getMessage());
-                // 不 ack → Kafka 重试（配合 seek 回到当前 offset）
+                log.error("DB 不可用, seek 回到当前 offset 等待重试: {}", e.getMessage());
+                try {
+                    consumer.seek(new TopicPartition(record.topic(), record.partition()), record.offset());
+                } catch (Exception seekEx) {
+                    log.error("seek 失败", seekEx);
+                }
             } catch (Exception e) {
                 log.error("订单消费异常", e);
                 ack.acknowledge();
