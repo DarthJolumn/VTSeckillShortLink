@@ -119,6 +119,7 @@ public class SeckillService {
                 cacheService.markSoldOut(activityId);
                 throw new BizException(1009, "库存不足");
             }
+            case -3 -> throw new BizException(500, "活动未初始化");
             default -> throw new BizException(500, "系统繁忙");
         };
     }

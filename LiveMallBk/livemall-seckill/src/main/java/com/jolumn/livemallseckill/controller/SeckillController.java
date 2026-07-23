@@ -63,7 +63,10 @@ public class SeckillController {
         return Result.ok(seckillService.getActivities(roomId));
     }
 
-    /** 抢购下单 → 返回 {result, orderNo} 供前端匹配 WS SEC_KILL_RESULT */
+    /**
+     * 抢购下单 → 返回 {result, orderNo} 供前端匹配 WS SEC_KILL_RESULT
+     * Kafka 不可用时 Fail Fast 返回 503 + 回补库存
+     */
     @PostMapping("/order")
     public Result<java.util.Map<String, Object>> placeOrder(@RequestBody java.util.Map<String, Long> body,
                                      @RequestHeader("X-User-Id") Long userId) {
@@ -72,35 +75,25 @@ public class SeckillController {
 
         String result = seckillService.placeOrder(activityId, userId, orderNo);
 
-        // Lua 扣减成功 → 发 Kafka（异步），Kafka 不可用时降级同步创建订单
+        // Lua 扣减成功 → 发 Kafka（异步）
         if ("ok".equals(result)) {
             if (kafkaTemplate != null) {
                 String msg = userId + ":" + activityId + ":" + orderNo;
                 try {
                     kafkaTemplate.send("seckill-order", msg).get(3, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    log.warn("Kafka 不可用, 降级同步创建订单: activityId={}, userId={}", activityId, userId);
-                    try {
-                        SeckillActivity activity = seckillService.getActivityCached(activityId);
-                        seckillService.createOrder(activity, userId, orderNo);
-                    } catch (Exception dbEx) {
-                        log.error("同步下单失败，回补库存: userId={}, orderNo={}", userId, orderNo);
-                        stockService.refund(activityId, userId);
-                        cacheService.markInStock(activityId);
-                        throw new BizException(500, "系统繁忙，请稍后重试");
-                    }
-                }
-            } else {
-                // 无 Kafka bean，直接同步创建订单
-                try {
-                    SeckillActivity activity = seckillService.getActivityCached(activityId);
-                    seckillService.createOrder(activity, userId, orderNo);
-                } catch (Exception e) {
-                    log.error("同步下单失败，回补库存: userId={}, orderNo={}", userId, orderNo);
+                    // Fail Fast: Kafka 不可用 → 回补库存 → 返回 503
+                    log.error("Kafka 不可用, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
                     stockService.refund(activityId, userId);
                     cacheService.markInStock(activityId);
-                    throw new BizException(500, "系统繁忙，请稍后重试");
+                    throw new BizException(503, "系统繁忙，请稍后重试");
                 }
+            } else {
+                // 无 Kafka bean（开发环境）→ Fail Fast 返回 503 + 回补库存
+                log.error("Kafka 未配置, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
+                stockService.refund(activityId, userId);
+                cacheService.markInStock(activityId);
+                throw new BizException(503, "系统繁忙，请稍后重试");
             }
         }
         return Result.ok(java.util.Map.of("result", result, "orderNo", orderNo));
