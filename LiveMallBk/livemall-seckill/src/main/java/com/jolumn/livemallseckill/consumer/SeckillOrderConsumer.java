@@ -3,7 +3,7 @@ package com.jolumn.livemallseckill.consumer;
 import com.jolumn.livemallcommon.grpc.SeckillPushGrpc;
 import com.jolumn.livemallcommon.grpc.SeckillPushOuterClass;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
-import com.jolumn.livemallseckill.repository.SeckillActivityRepository;
+import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.SeckillService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -20,14 +20,14 @@ public class SeckillOrderConsumer {
     private static final Logger log = LoggerFactory.getLogger(SeckillOrderConsumer.class);
 
     private final SeckillService seckillService;
-    private final SeckillActivityRepository activityRepo;
+    private final ActivityCacheService cacheService;
     private final SeckillPushGrpc.SeckillPushBlockingStub seckillPushStub;
 
     public SeckillOrderConsumer(SeckillService seckillService,
-                                SeckillActivityRepository activityRepo,
+                                ActivityCacheService cacheService,
                                 SeckillPushGrpc.SeckillPushBlockingStub seckillPushStub) {
         this.seckillService = seckillService;
-        this.activityRepo = activityRepo;
+        this.cacheService = cacheService;
         this.seckillPushStub = seckillPushStub;
     }
 
@@ -45,7 +45,7 @@ public class SeckillOrderConsumer {
                 Long activityId = Long.parseLong(parts[1]);
                 String orderNo = parts[2];
 
-                SeckillActivity activity = activityRepo.findById(activityId).orElse(null);
+                SeckillActivity activity = cacheService.getActivity(activityId);
                 if (activity == null) {
                     log.error("活动不存在: activityId={}", activityId);
                     ack.acknowledge();

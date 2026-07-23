@@ -157,8 +157,9 @@ public class SeckillService {
         if (order.getStatus() != 0) {
             throw new BizException(400, "订单状态不允许取消");
         }
-        // Redis 先 refund（Lua INCR+DEL 幂等），失败抛异常回滚整个事务
+        // Redis 先 refund（Lua EXISTS 检查保证幂等），失败抛异常回滚整个事务
         stockService.refund(order.getActivityId(), userId);
+        cacheService.markInStock(order.getActivityId());
 
         order.setStatus(2);
         order.setCancelledAt(LocalDateTime.now());
