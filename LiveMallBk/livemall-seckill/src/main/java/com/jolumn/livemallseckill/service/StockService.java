@@ -55,11 +55,8 @@ public class StockService {
      *  -2 = 库存不足
      */
     public int deduct(Long activityId, Long userId) {
-        String stockKey = "stock:total:" + activityId;
         String orderedKey = "ordered:" + activityId + ":" + userId;
-        List<String> keys = List.of(stockKey, orderedKey);
-
-        Long result = redisTemplate.execute(deductScript, keys,
+        Long result = redisTemplate.execute(deductScript, List.of(orderedKey),
                 userId.toString(), String.valueOf(shardCount), String.valueOf(activityId));
 
         int code = result != null ? result.intValue() : -2;
