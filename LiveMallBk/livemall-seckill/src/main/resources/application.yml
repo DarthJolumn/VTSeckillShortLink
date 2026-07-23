@@ -57,7 +57,7 @@ spring:
       acks: all
     consumer:
       group-id: livemall-seckill
-      auto-offset-reset: latest
+      auto-offset-reset: earliest
       enable-auto-commit: false  # MANUAL ACK
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -139,4 +139,4 @@ logging:
   level:
     com.jolumn.livemallseckill: DEBUG
     org.hibernate.SQL: INFO
-    org.springframework.kafka: DEBUG
+#    org.springframework.kafka: WARN
