@@ -2,6 +2,7 @@ package com.jolumn.livemallseckill.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -17,6 +18,9 @@ public class StockService {
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> deductScript;
     private final DefaultRedisScript<Long> refundScript;
+
+    @Value("${seckill.dedup-enabled:true}")
+    private boolean dedupEnabled;
 
     public StockService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -46,7 +50,8 @@ public class StockService {
     public int deduct(Long activityId, Long userId) {
         String stockKey = "stock:{" + activityId + "}";
         String orderedKey = "ordered:{" + activityId + "}:" + userId;
-        Long result = redisTemplate.execute(deductScript, List.of(stockKey, orderedKey));
+        String dedupFlag = dedupEnabled ? "1" : "0";
+        Long result = redisTemplate.execute(deductScript, List.of(stockKey, orderedKey), dedupFlag);
 
         int code = result != null ? result.intValue() : -2;
         if (code == 200) {

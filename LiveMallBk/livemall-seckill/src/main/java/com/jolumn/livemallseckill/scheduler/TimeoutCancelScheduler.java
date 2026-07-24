@@ -26,6 +26,9 @@ public class TimeoutCancelScheduler {
     @Value("${seckill.order-timeout-minutes:15}")
     private int timeoutMinutes;
 
+    @Value("${seckill.timeout-cancel-enabled:true}")
+    private boolean timeoutCancelEnabled;
+
     public TimeoutCancelScheduler(SeckillOrderRepository orderRepo, StockService stockService,
                                    ActivityCacheService cacheService) {
         this.orderRepo = orderRepo;
@@ -36,6 +39,7 @@ public class TimeoutCancelScheduler {
     /** 每15秒扫描超时未支付订单 */
     @Scheduled(fixedDelayString = "${seckill.timeout-scan-ms:15000}")
     public void cancelTimeoutOrders() {
+        if (!timeoutCancelEnabled) return;
         LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
         List<SeckillOrder> timeoutOrders = orderRepo.findByStatusAndCreatedAtBefore(0, deadline);
 

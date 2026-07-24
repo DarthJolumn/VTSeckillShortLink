@@ -109,12 +109,18 @@ seckill:
   idempotency-ttl-seconds: 300
   # 取消/退款防重锁 TTL（10s）
   cancel-lock-ttl-seconds: 10
+  # 超时取消开关（压测时置 false）
+  timeout-cancel-enabled: false
   # 超时订单扫描间隔（15s）
   timeout-scan-ms: 15000
   # 订单超时阈值（15min）
   order-timeout-minutes: 15
   # 超时扫描每次批量数（500）
   timeout-scan-batch: 500
+  # Redis 去重开关（压测时置 false）
+  dedup-enabled: true
+  # 消费者最大并发数（匹配 HikariCP pool size）
+  consumer-max-concurrency: 30
   # Caffeine 活动缓存配置
   activity-cache:
     ttl-seconds: 5
