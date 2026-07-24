@@ -5,21 +5,22 @@ import com.jolumn.livemallcommon.grpc.SeckillPushOuterClass;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.SeckillService;
-import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionException;
+
+import java.util.concurrent.Semaphore;
 
 @Component
 public class SeckillOrderConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(SeckillOrderConsumer.class);
+    private static final Semaphore SEM = new Semaphore(30);
 
     private final SeckillService seckillService;
     private final ActivityCacheService cacheService;
@@ -34,7 +35,14 @@ public class SeckillOrderConsumer {
     }
 
     @KafkaListener(topics = "seckill-order", groupId = "livemall-seckill")
-    public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack, Consumer<?, ?> consumer) {
+    public void onMessage(ConsumerRecord<String, String> record, Acknowledgment ack) {
+        try {
+            SEM.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+
         Thread.startVirtualThread(() -> {
             try {
                 String[] parts = record.value().split(":", 3);
@@ -56,7 +64,6 @@ public class SeckillOrderConsumer {
 
                 seckillService.createOrder(activity, userId, orderNo);
 
-                // gRPC 推送秒杀结果到 WebSocket 服务
                 try {
                     SeckillPushOuterClass.SeckillPushResponse resp = seckillPushStub.pushResult(
                             SeckillPushOuterClass.SeckillPushRequest.newBuilder()
@@ -76,17 +83,14 @@ public class SeckillOrderConsumer {
                 ack.acknowledge();
             } catch (DuplicateKeyException e) {
                 log.warn("重复订单（幂等兜底）: orderNo={}", e.getMessage());
-                ack.acknowledge(); // 不可重试，直接 ack 跳过
-            } catch (DataAccessException e) {
-                log.error("DB 不可用, seek 回到当前 offset 等待重试: {}", e.getMessage());
-                try {
-                    consumer.seek(new TopicPartition(record.topic(), record.partition()), record.offset());
-                } catch (Exception seekEx) {
-                    log.error("seek 失败", seekEx);
-                }
+                ack.acknowledge();
+            } catch (TransactionException e) {
+                log.error("DB/事务异常, 不 ack 等待 Kafka 重投: {}", e.getMessage());
             } catch (Exception e) {
                 log.error("订单消费异常", e);
                 ack.acknowledge();
+            } finally {
+                SEM.release();
             }
         });
     }
