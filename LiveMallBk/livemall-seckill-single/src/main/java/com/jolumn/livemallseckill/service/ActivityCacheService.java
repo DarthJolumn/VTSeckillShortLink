@@ -1,6 +1,5 @@
 package com.jolumn.livemallseckill.service;
 
-import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
