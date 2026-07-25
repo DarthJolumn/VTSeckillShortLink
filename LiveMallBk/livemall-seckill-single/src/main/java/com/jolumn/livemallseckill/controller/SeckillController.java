@@ -27,13 +27,17 @@ public class SeckillController {
 
     private final SeckillService seckillService;
     private final SnowflakeIdGenerator idGenerator;
-    @Autowired private StockService stockService;
-    @Autowired(required = false) private KafkaTemplate<String, String> kafkaTemplate;
+    private final StockService stockService;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public SeckillController(SeckillService seckillService,
-                             SnowflakeIdGenerator idGenerator) {
+                             SnowflakeIdGenerator idGenerator,
+                             StockService stockService,
+                             @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate) {
         this.seckillService = seckillService;
         this.idGenerator = idGenerator;
+        this.stockService = stockService;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     /** 创建秒杀活动（管理员）— 前端字段名 name/price/origPrice/stockTotal/startAt/endAt(ms) */
