@@ -36,6 +36,11 @@ public class ActivityCacheService {
         return activityCache.get(activityId);
     }
 
+    /** 直接写入 Caffeine（预热/批量加载用，避免重复查询 DB） */
+    public void put(Long activityId, SeckillActivity activity) {
+        activityCache.put(activityId, activity);
+    }
+
     /** 预热/刷新缓存：从 DB 加载并写入 Caffeine（上架时调用） */
     public void refresh(Long activityId) {
         activityRepo.findById(activityId).ifPresent(a -> activityCache.put(activityId, a));
