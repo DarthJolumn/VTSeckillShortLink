@@ -77,7 +77,6 @@ public class SeckillService {
 
         if (status == 1) {
             stockService.initStock(activityId, activity.getTotalStock());
-            cacheService.markInStock(activityId);
             cacheService.refresh(activityId);
             // bloomFilter.add(activityId); — BF 多实例不一致，Caffeine 精确判存替代
         }
@@ -85,11 +84,6 @@ public class SeckillService {
 
     /** 抢购下单。Caffeine L1 → Redis Lua → Kafka */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
-        // Caffeine L1 快速售罄检查
-        if (cacheService.isSoldOut(activityId)) {
-            throw new BizException(1009, "库存不足");
-        }
-
         // Caffeine L1 缓存活动信息
         SeckillActivity activity = cacheService.getActivity(activityId);
         if (activity == null) {
@@ -110,10 +104,7 @@ public class SeckillService {
                 yield "ok";
             }
             case -1 -> throw new BizException(1010, "已参与过该活动");
-            case -2 -> {
-                cacheService.markSoldOut(activityId);
-                throw new BizException(1009, "库存不足");
-            }
+            case -2 -> throw new BizException(1009, "库存不足");
             case -3 -> throw new BizException(500, "活动未初始化");
             default -> throw new BizException(500, "系统繁忙");
         };
@@ -159,7 +150,6 @@ public class SeckillService {
         orderRepo.save(order);
 
         stockService.refund(order.getActivityId(), userId);
-        cacheService.markInStock(order.getActivityId());
     }
 
     /** 退款 */

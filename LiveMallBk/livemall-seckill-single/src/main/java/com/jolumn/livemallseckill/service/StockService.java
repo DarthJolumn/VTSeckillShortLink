@@ -40,7 +40,7 @@ public class StockService {
         int remainder = totalStock % shardCount;
         for (int i = 0; i < shardCount; i++) {
             int shardStock = base + (i < remainder ? 1 : 0);
-            redisTemplate.opsForValue().set("stock:shard:" + activityId + ":" + i, String.valueOf(shardStock));
+            redisTemplate.opsForValue().set("stock:shard:{" + activityId + "}:" + i, String.valueOf(shardStock));
         }
         log.info("库存初始化: activityId={}, total={}, shards={}, base={}, remainder={}",
                 activityId, totalStock, shardCount, base, remainder);
@@ -68,7 +68,7 @@ public class StockService {
     /** 回补库存 */
     public void refund(Long activityId, Long userId) {
         int shard = (int) (userId % shardCount);
-        String stockKey = "stock:shard:" + activityId + ":" + shard;
+        String stockKey = "stock:shard:{" + activityId + "}:" + shard;
         String orderedKey = "ordered:{" + activityId + "}:" + userId;
         redisTemplate.execute(refundScript, List.of(stockKey, orderedKey));
         log.info("库存回补: activityId={}, userId={}, shard={}", activityId, userId, shard);

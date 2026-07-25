@@ -6,7 +6,6 @@ import com.jolumn.livemallcommon.util.SnowflakeIdGenerator;
 import com.jolumn.livemallseckill.dto.CreateActivityRequest;
 import com.jolumn.livemallseckill.entity.SeckillActivity;
 import com.jolumn.livemallseckill.entity.SeckillOrder;
-import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.SeckillService;
 import com.jolumn.livemallseckill.service.StockService;
 import jakarta.validation.Valid;
@@ -29,7 +28,6 @@ public class SeckillController {
     private final SeckillService seckillService;
     private final SnowflakeIdGenerator idGenerator;
     @Autowired private StockService stockService;
-    @Autowired private ActivityCacheService cacheService;
     @Autowired(required = false) private KafkaTemplate<String, String> kafkaTemplate;
 
     public SeckillController(SeckillService seckillService,
@@ -85,14 +83,12 @@ public class SeckillController {
                     // Fail Fast: Kafka 不可用 → 回补库存 → 返回 503
                     log.error("Kafka 不可用, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
                     stockService.refund(activityId, userId);
-                    cacheService.markInStock(activityId);
                     throw new BizException(503, "系统繁忙，请稍后重试");
                 }
             } else {
                 // 无 Kafka bean（开发环境）→ Fail Fast 返回 503 + 回补库存
                 log.error("Kafka 未配置, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
                 stockService.refund(activityId, userId);
-                cacheService.markInStock(activityId);
                 throw new BizException(503, "系统繁忙，请稍后重试");
             }
         }

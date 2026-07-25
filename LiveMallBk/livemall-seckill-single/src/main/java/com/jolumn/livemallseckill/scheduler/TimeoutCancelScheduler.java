@@ -2,7 +2,6 @@ package com.jolumn.livemallseckill.scheduler;
 
 import com.jolumn.livemallseckill.entity.SeckillOrder;
 import com.jolumn.livemallseckill.repository.SeckillOrderRepository;
-import com.jolumn.livemallseckill.service.ActivityCacheService;
 import com.jolumn.livemallseckill.service.StockService;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
@@ -21,16 +20,13 @@ public class TimeoutCancelScheduler {
 
     private final SeckillOrderRepository orderRepo;
     private final StockService stockService;
-    private final ActivityCacheService cacheService;
 
     @Value("${seckill.order-timeout-minutes:15}")
     private int timeoutMinutes;
 
-    public TimeoutCancelScheduler(SeckillOrderRepository orderRepo, StockService stockService,
-                                   ActivityCacheService cacheService) {
+    public TimeoutCancelScheduler(SeckillOrderRepository orderRepo, StockService stockService) {
         this.orderRepo = orderRepo;
         this.stockService = stockService;
-        this.cacheService = cacheService;
     }
 
     /** 每15秒扫描超时未支付订单 */
@@ -47,7 +43,6 @@ public class TimeoutCancelScheduler {
                     orderRepo.save(order);
 
                     stockService.refund(order.getActivityId(), order.getUserId());
-                    cacheService.markInStock(order.getActivityId());
                     log.info("超时取消订单成功: orderNo={}", order.getOrderNo());
                 } catch (OptimisticLockException e) {
                     log.info("订单已被用户主动取消: orderNo={}", order.getOrderNo());

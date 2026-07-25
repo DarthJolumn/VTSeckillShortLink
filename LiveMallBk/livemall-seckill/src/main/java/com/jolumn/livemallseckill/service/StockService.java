@@ -18,12 +18,12 @@ public class StockService {
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> deductScript;
     private final DefaultRedisScript<Long> refundScript;
+    private final boolean dedupEnabled;
 
-    @Value("${seckill.dedup-enabled:true}")
-    private boolean dedupEnabled;
-
-    public StockService(StringRedisTemplate redisTemplate) {
+    public StockService(StringRedisTemplate redisTemplate,
+                        @Value("${seckill.dedup-enabled:true}") boolean dedupEnabled) {
         this.redisTemplate = redisTemplate;
+        this.dedupEnabled = dedupEnabled;
 
         this.deductScript = new DefaultRedisScript<>();
         this.deductScript.setLocation(new ClassPathResource("lua/deduct_stock.lua"));

@@ -9,7 +9,7 @@ local ordered = redis.call("GET", KEYS[1])
 if ordered then return -1 end
 
 local shard = tonumber(ARGV[1]) % tonumber(ARGV[2])
-local stockKey = "stock:shard:" .. ARGV[3] .. ":" .. shard
+local stockKey = "stock:shard:{" .. ARGV[3] .. "}:" .. shard
 
 local stock = redis.call("DECR", stockKey)
 if stock >= 0 then

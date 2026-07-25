@@ -37,6 +37,7 @@ spring:
           - 192.168.147.132:6381
           - 192.168.147.132:6382
           - 192.168.147.132:6383
+        read-from: MASTER
       password: redis123
       timeout: 3000ms
       lettuce:

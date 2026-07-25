@@ -37,6 +37,8 @@ spring:
           - 192.168.147.132:6381
           - 192.168.147.132:6382
           - 192.168.147.132:6383
+        # 强制读 Master，禁读写分离，避免主从异步复制读到过期库存
+        read-from: MASTER
       password: redis123
       timeout: 3000ms
       lettuce:
@@ -44,6 +46,8 @@ spring:
           max-active: 15
           max-idle: 10
           min-idle: 5
+        # ⚠️ 待测 cluster:read-from=MASTER 在主从切换(RESP -ASK)期间的可用性
+        # 理论上 Cluster 自动 redirect 到新 Master，需实际 failover 验证
 
   # ====== Kafka（异步下单） ======
   kafka:
