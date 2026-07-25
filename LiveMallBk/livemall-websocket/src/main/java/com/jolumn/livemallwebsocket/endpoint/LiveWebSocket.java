@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 
 @Component
 @ServerEndpoint("/ws/live/{roomId}")
@@ -23,7 +22,6 @@ public class LiveWebSocket {
 
     private static final Logger log = LoggerFactory.getLogger(LiveWebSocket.class);
     private static final ObjectMapper mapper = new ObjectMapper();
-    private static final Semaphore BROADCAST_SEM = new Semaphore(200);
 
     private static WsSessionManager sessionManager;
     private static JwtUtil jwtUtil;
@@ -138,6 +136,7 @@ public class LiveWebSocket {
             // JJWT + Gson 解析时数字会变成 Double，无法直接转 Integer，需通过 Number 中转
             Integer role = ((Number) claims.get("role")).intValue();
             ws.upgrade(userId, role);
+            sessionManager.updateUserIndex(ws);
             log.info("WS 连接升级: session={}, userId={}", ws.getSessionId(), userId);
             sendJson(session, Map.of("type", "AUTH_OK", "data",
                     Map.of("userId", userId, "role", role, "displayName", ws.getDisplayName())));
@@ -206,19 +205,7 @@ public class LiveWebSocket {
 
     private void broadcastToRoom(Long roomId, Map<String, Object> message) {
         for (WsSession ws : sessionManager.getRoomSessions(roomId)) {
-            try {
-                BROADCAST_SEM.acquire();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                continue;
-            }
-            Thread.startVirtualThread(() -> {
-                try {
-                    sendJson(ws.getSession(), message);
-                } finally {
-                    BROADCAST_SEM.release();
-                }
-            });
+            sendJson(ws.getSession(), message);
         }
     }
 
@@ -252,6 +239,7 @@ public class LiveWebSocket {
     }
 
     private void sendJson(Session session, Map<String, Object> message) {
+        if (!session.isOpen()) return;
         try {
             session.getAsyncRemote().sendText(mapper.writeValueAsString(message));
         } catch (Exception e) {

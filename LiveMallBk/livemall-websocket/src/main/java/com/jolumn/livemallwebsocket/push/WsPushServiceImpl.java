@@ -104,6 +104,7 @@ public class WsPushServiceImpl implements WsPushService {
     }
 
     private void sendRaw(WsSession ws, String message) {
+        if (!ws.getSession().isOpen()) return;
         try {
             ws.getSession().getAsyncRemote().sendText(message);
         } catch (Exception e) {
