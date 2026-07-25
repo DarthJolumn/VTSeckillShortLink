@@ -1,6 +1,7 @@
 package com.jolumn.livemallseckill.repository;
 
 import com.jolumn.livemallseckill.entity.SeckillOrder;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,8 @@ public interface SeckillOrderRepository extends JpaRepository<SeckillOrder, Long
     List<SeckillOrder> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<SeckillOrder> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(Integer status, LocalDateTime time);
+
+    List<SeckillOrder> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(Integer status, LocalDateTime time, Pageable pageable);
 
     List<SeckillOrder> findByStatusAndCancelledAtAfter(Integer status, LocalDateTime time);
 }

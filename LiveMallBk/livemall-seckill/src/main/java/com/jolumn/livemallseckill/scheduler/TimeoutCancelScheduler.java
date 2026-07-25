@@ -7,6 +7,7 @@ import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -27,17 +28,20 @@ public class TimeoutCancelScheduler {
     @Value("${seckill.timeout-cancel-enabled:true}")
     private boolean timeoutCancelEnabled;
 
+    @Value("${seckill.timeout-scan-batch:500}")
+    private int batchSize;
+
     public TimeoutCancelScheduler(SeckillOrderRepository orderRepo, StockService stockService) {
         this.orderRepo = orderRepo;
         this.stockService = stockService;
     }
 
-    /** 每15秒扫描超时未支付订单 */
     @Scheduled(fixedDelayString = "${seckill.timeout-scan-ms:15000}")
     public void cancelTimeoutOrders() {
         if (!timeoutCancelEnabled) return;
         LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
-        List<SeckillOrder> timeoutOrders = orderRepo.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(0, deadline);
+        List<SeckillOrder> timeoutOrders = orderRepo.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+                0, deadline, PageRequest.of(0, batchSize));
 
         for (SeckillOrder order : timeoutOrders) {
             Thread.startVirtualThread(() -> {
