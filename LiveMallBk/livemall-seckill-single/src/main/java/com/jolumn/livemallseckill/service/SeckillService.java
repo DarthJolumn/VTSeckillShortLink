@@ -79,17 +79,12 @@ public class SeckillService {
             stockService.initStock(activityId, activity.getTotalStock());
             cacheService.markInStock(activityId);
             cacheService.refresh(activityId);
-            bloomFilter.add(activityId);
+            // bloomFilter.add(activityId); — BF 多实例不一致，Caffeine 精确判存替代
         }
     }
 
-    /** 抢购下单。Bloom → Caffeine L1 → Redis Lua → Kafka */
+    /** 抢购下单。Caffeine L1 → Redis Lua → Kafka */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
-        // 0. 布隆过滤器 — 快速拒绝无效 activityId
-        if (!bloomFilter.mightContain(activityId)) {
-            throw new BizException(404, "活动不存在");
-        }
-
         // Caffeine L1 快速售罄检查
         if (cacheService.isSoldOut(activityId)) {
             throw new BizException(1009, "库存不足");
