@@ -147,7 +147,7 @@ public class SeckillService {
                 .orElseThrow(() -> new BizException(404, "订单不存在"));
     }
 
-    /** 取消订单。先 Redis refund（幂等），后 DB 更新。Redis 失败抛异常不更新 DB */
+    /** 取消订单。先 DB 更新（@Version 防并发），后 Redis 回补（Lua EXISTS 幂等） */
     @Transactional
     public void cancelOrder(String orderNo, Long userId) {
         SeckillOrder order = orderRepo.findByOrderNo(orderNo)
@@ -158,13 +158,12 @@ public class SeckillService {
         if (order.getStatus() != 0) {
             throw new BizException(400, "订单状态不允许取消");
         }
-        // Redis 先 refund（Lua EXISTS 检查保证幂等），失败抛异常回滚整个事务
-        stockService.refund(order.getActivityId(), userId);
-        cacheService.markInStock(order.getActivityId());
-
         order.setStatus(2);
         order.setCancelledAt(LocalDateTime.now());
         orderRepo.save(order);
+
+        stockService.refund(order.getActivityId(), userId);
+        cacheService.markInStock(order.getActivityId());
     }
 
     /** 退款 */

@@ -42,13 +42,12 @@ public class TimeoutCancelScheduler {
         for (SeckillOrder order : timeoutOrders) {
             Thread.startVirtualThread(() -> {
                 try {
-                    // 先 refund（lua EXISTS 检查保证幂等），Redis 不可用异常上抛不修改 DB
-                    stockService.refund(order.getActivityId(), order.getUserId());
-                    cacheService.markInStock(order.getActivityId());
-
                     order.setStatus(2);
                     order.setCancelledAt(LocalDateTime.now());
                     orderRepo.save(order);
+
+                    stockService.refund(order.getActivityId(), order.getUserId());
+                    cacheService.markInStock(order.getActivityId());
                     log.info("超时取消订单成功: orderNo={}", order.getOrderNo());
                 } catch (OptimisticLockException e) {
                     log.info("订单已被用户主动取消: orderNo={}", order.getOrderNo());
