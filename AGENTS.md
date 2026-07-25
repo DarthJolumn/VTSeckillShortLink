@@ -113,6 +113,46 @@ Integer role = ((Number) claims.get("role")).intValue();
 
 两个 seckill 模块的 `application.yml` 均已配置 `read-from: MASTER`（避免 replica lag）。seckill-single 的 `deduct_stock_single.lua` 和 `StockService` 的 key 已加 `{activityId}` hash tag（解决 CROSSSLOT）。
 
+## 项目面试成熟度评估（2026-07-25）
+
+### 已完成维度
+
+| 维度 | 实现 | 面试话术 |
+|------|------|---------|
+| **限流** | Sentinel Dashboard 设规则 | 「Gateway 层 Sentinel 令牌桶限流，QPS 阈值+熔断降级」 |
+| **可观测性** | SkyWalking 链路追踪 | 「SkyWalking 定位跨服务慢调用，拓扑图分析依赖」 |
+| **GC 调优** | G1 → ZGC 对比压测 | 「同口径 450 并发，G1 GC 耗时 856ms → ZGC 3ms，P99 降 32%」 |
+| **瓶颈定位** | 阶梯加压 10→450 | 「300 并发 TPS 1408 为甜点，450 并发退化至 1298」 |
+| **高并发消费** | Semaphore 背压 + 手动 ACK | 「信号量耗尽阻塞 poll → Broker 降速，手动 ACK + 幂等去重 + 内存分级重试，100% 入库成功」 |
+| **分布式事务** | DB 先 → Redis 后 + 对账 | 「@Version CAS 防并发，ReconciliationScheduler 每 5 分钟补偿」 |
+| **多实例一致性** | 移除 BF + soldOutCache | 「活动量级小，Caffeine 精确判存；售罄由 Lua deduct 兜底」 |
+| **WebSocket 推送** | Redis Pub/Sub 多实例推送 | 「替代 gRPC 单点推送，所有实例收到后广播给本地连接」 |
+| **集成测试** | JMeter 全链路压测 | 「注册+秒杀混合场景，10w 订单零丢失」 |
+
+### 面试回答模板
+
+**Q: 秒杀系统怎么保证不超卖？**
+> Redis Lua 原子扣减（扣库存+判重+设标记），Lua 脚本内完成，无并发问题。Lua 返回 -2 表示库存不足。
+
+**Q: 下单链路是怎样的？**
+> 前端 → Gateway 限流 → SeckillService.placeOrder()（Caffeine 判存 + Redis Lua 扣减）→ Kafka → Consumer（Semaphore 背压 + 手动 ACK）→ DB 入库 → Redis Pub/Sub → WebSocket 推送结果
+
+**Q: Kafka 消费失败怎么办？**
+> 手动 ACK：消费成功才 ack。TransactionException 内存重试 3 次，超过后 ack 放弃（幂等兜底，DuplicateKey 不会重复入库）。
+
+**Q: 如何防止虚拟线程堆积？**
+> Semaphore(30) 上限对齐 HikariCP 池大小。信号量耗尽 → 阻塞 listener 线程 → poll 暂停 → Broker 感知消费慢 → 降速。从根源杜绝 VT 堆积。
+
+**Q: 限流用的什么算法？**
+> 令牌桶（Token Bucket）：固定速率放令牌，请求取令牌，桶空则拒绝。允许突发流量（攒令牌后短时间放行一批），适合秒杀场景。漏桶（Leaky Bucket）强制匀速输出，不适合突发。
+
+**Q: 分布式事务怎么处理的？**
+> 取消订单：DB 先（@Version CAS 防并发）、Redis 后（Lua EXISTS 幂等回补）。如果 Redis 回补失败，ReconciliationScheduler 每 5 分钟扫描 status=2 的订单，检查 ordered key 是否还在 Redis，在则补偿回补。
+
+### 待处理
+
+- **P0-1**: refundOrder() 不退库存 — 无支付模块，等支付上线后补全
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 
