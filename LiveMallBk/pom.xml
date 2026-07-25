@@ -106,7 +106,6 @@
     <modules>
         <module>livemall-common</module>
         <module>livemall-user</module>
-        <module>livemall-seckill-single</module>
         <module>livemall-seckill</module>
         <module>livemall-websocket</module>
         <module>livemall-leaderboard</module>
