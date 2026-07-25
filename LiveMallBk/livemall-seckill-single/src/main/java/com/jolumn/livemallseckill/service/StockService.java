@@ -57,7 +57,10 @@ public class StockService {
         Long result = redisTemplate.execute(deductScript, List.of(orderedKey),
                 userId.toString(), String.valueOf(shardCount), String.valueOf(activityId));
 
-        int code = result != null ? result.intValue() : -2;
+        if (result == null) {
+            throw new RuntimeException("Redis 连接失败，库存扣减中断");
+        }
+        int code = result.intValue();
         if (code == 200) {
             log.info("库存扣减成功: activityId={}, userId={}, shard={}",
                     activityId, userId, userId % shardCount);

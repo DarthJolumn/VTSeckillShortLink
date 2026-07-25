@@ -96,7 +96,12 @@ public class SeckillService {
             throw new BizException(400, "不在活动时间范围内");
         }
 
-        int result = stockService.deduct(activityId, userId);
+        int result;
+        try {
+            result = stockService.deduct(activityId, userId);
+        } catch (RuntimeException e) {
+            throw new BizException(503, "系统繁忙，请稍后重试");
+        }
         return switch (result) {
             case 200 -> {
                 log.info("抢购成功: activityId={}, userId={}, orderNo={}", activityId, userId, orderNo);

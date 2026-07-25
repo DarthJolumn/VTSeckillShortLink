@@ -53,7 +53,10 @@ public class StockService {
         String dedupFlag = dedupEnabled ? "1" : "0";
         Long result = redisTemplate.execute(deductScript, List.of(stockKey, orderedKey), dedupFlag);
 
-        int code = result != null ? result.intValue() : -2;
+        if (result == null) {
+            throw new RuntimeException("Redis 连接失败，库存扣减中断");
+        }
+        int code = result.intValue();
         if (code == 200) {
             log.info("库存扣减成功: activityId={}, userId={}", activityId, userId);
         }
