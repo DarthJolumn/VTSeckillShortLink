@@ -31,9 +31,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemallseckill",
+        "com.jolumn.livemallcommon.interceptor",
         "com.jolumn.livemallcommon.util",
         "com.jolumn.livemallcommon.exception",
-        "com.jolumn.livemallcommon.dto"
+        "com.jolumn.livemallcommon.dto",
+        "com.jolumn.livemallcommon.annotation"
 })
 @EnableDubbo
 @EnableScheduling

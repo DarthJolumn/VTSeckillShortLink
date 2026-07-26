@@ -23,6 +23,13 @@ spring:
       maximum-pool-size: 30
       minimum-idle: 5
 
+  # ====== 商品数据源（livemall_product_1） ======
+  product-datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall_product_1?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: none
