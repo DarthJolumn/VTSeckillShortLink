@@ -99,6 +99,10 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+# ====== 商品分享短链域名 ======
+product:
+  share-url-base: ${SHARE_URL_BASE:https://s.livemall.com}
+
 # ====== Dubbo（消费 WsPushService） ======
 dubbo:
   application:

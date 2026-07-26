@@ -5,7 +5,6 @@ import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallshortlink.dto.ShortLinkVO;
 import com.jolumn.livemallshortlink.service.ShortLinkService;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.Map;
 
 @RestController
@@ -41,13 +39,13 @@ public class ShortLinkController {
     }
 
     /**
-     * 短链跳转（公开）
-     * GET /s/{shortCode}
+     * 解析短链（公开）
+     * GET /s/{shortCode} → 返回原始 URL，前端自行跳转
      */
     @GetMapping("/{shortCode}")
-    public void redirect(@PathVariable String shortCode, HttpServletResponse response) throws IOException {
+    public Result<Map<String, String>> resolve(@PathVariable String shortCode) {
         String originalUrl = shortLinkService.getOriginalUrl(shortCode);
-        response.sendRedirect(originalUrl);
+        return Result.ok(Map.of("shortCode", shortCode, "originalUrl", originalUrl));
     }
 
     // ===================== 管理接口（需登录） =====================

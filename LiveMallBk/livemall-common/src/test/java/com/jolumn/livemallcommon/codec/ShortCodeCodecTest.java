@@ -18,9 +18,9 @@ class ShortCodeCodecTest {
         assertEquals('P', ShortCodeCodec.getPrefix(shortCode));
         assertTrue(ShortCodeCodec.isProductShortCode(shortCode));
 
-        // 验证双向推导
+        // 验证双向推导（全 64 位，无掩码截断）
         long decoded = ShortCodeCodec.decode(shortCode);
-        assertEquals(productId & 0x0000FFFFFFFFFFFFL, decoded);
+        assertEquals(productId, decoded);
     }
 
     @Test
@@ -70,10 +70,10 @@ class ShortCodeCodecTest {
     void testRoundTrip() {
         // 测试大量 ID 的双向推导
         for (long i = 1; i <= 10000; i++) {
-            long productId = i * 1000000L; // 模拟雪花 ID
+            long productId = i * 1000000L;
             String shortCode = ShortCodeCodec.encodeProduct(productId);
             long decoded = ShortCodeCodec.decode(shortCode);
-            assertEquals(productId & 0x0000FFFFFFFFFFFFL, decoded,
+            assertEquals(productId, decoded,
                     "Round trip failed for ID: " + productId);
         }
     }

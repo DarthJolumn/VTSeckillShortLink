@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,18 +22,26 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ShortLinkService {
 
     private static final Logger log = LoggerFactory.getLogger(ShortLinkService.class);
     private static final String BASE_SHORT_URL = "https://s.livemall.com/";
+    private static final String STATS_CNT_PREFIX = "stats:cnt:";
+    private static final String LOCK_PREFIX = "s:lock:";
+    private static final String LOCK_UNLOCK_LUA =
+            "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
 
     private final ShortLinkRepository shortLinkRepository;
     private final ShortLinkCache shortLinkCache;
     private final IdGenerator idGenerator;
     private final StatisticsService statisticsService;
+    private final StringRedisTemplate redisTemplate;
+    private final ShortCodeBloomFilter bloomFilter;
     private final int defaultExpireDays;
+    private final DefaultRedisScript<Long> unlockScript;
 
     @DubboReference
     private ProductShortLinkService productShortLinkService;
@@ -40,24 +50,23 @@ public class ShortLinkService {
                             ShortLinkCache shortLinkCache,
                             IdGenerator idGenerator,
                             StatisticsService statisticsService,
+                            StringRedisTemplate redisTemplate,
+                            ShortCodeBloomFilter bloomFilter,
                             @Value("${shortlink.default-expire-days:30}") int defaultExpireDays) {
         this.shortLinkRepository = shortLinkRepository;
         this.shortLinkCache = shortLinkCache;
         this.idGenerator = idGenerator;
         this.statisticsService = statisticsService;
+        this.redisTemplate = redisTemplate;
+        this.bloomFilter = bloomFilter;
         this.defaultExpireDays = defaultExpireDays;
+        this.unlockScript = new DefaultRedisScript<>(LOCK_UNLOCK_LUA, Long.class);
     }
 
-    /**
-     * 创建短链（公开接口，无 userId/title）
-     */
     public String createShortLink(Long productId, String originalUrl) {
         return doCreate(productId, originalUrl, null, null);
     }
 
-    /**
-     * 创建短链（管理接口，带 userId/title）
-     */
     @Transactional
     public ShortLinkVO createShortLink(Long userId, Long productId, String originalUrl, String title) {
         String shortCode = doCreate(productId, originalUrl, userId, title);
@@ -97,35 +106,94 @@ public class ShortLinkService {
 
         shortLinkCache.put(shortCode, originalUrl, ttl);
         shortLinkCache.putHashMapping(urlHash, shortCode);
+        bloomFilter.add(shortCode);
 
         log.info("短链创建成功: productId={}, shortCode={}, userId={}", productId, shortCode, userId);
         return shortCode;
     }
 
     /**
-     * 获取原始 URL（三级解析：Redis → DB → 算法）
+     * 获取原始 URL（五级防御：BloomFilter → L1 → L2 → DCL → DB/算法）
      * <p>
-     * 解析策略：
-     * 1. Redis 缓存命中：直接返回
-     * 2. DB 命中：处理活动/直播间等非算法派生短链
-     * 3. 算法推导：识别版本前缀 → 解码 productId → RPC 校验 → 回填缓存
+     * 防御链路：
+     * 1. BloomFilter 穿透防御（非算法码）
+     * 2. Caffeine L1 本地缓存
+     * 3. Redis L2 缓存 + 空值标记
+     * 4. Redisson DCL（SETNX 互斥锁 + 双重检查）
+     * 5. DB 查询 / 算法推导（兜底）
      */
     public String getOriginalUrl(String shortCode) {
+        // Level 0: BloomFilter 快速拒绝（仅非算法码）
+        if (!ShortCodeCodec.isProductShortCode(shortCode)
+                && !bloomFilter.mightContain(shortCode)) {
+            throw new BizException(404, "短链不存在");
+        }
+
         // Level 1: L1 本地缓存
         String url = shortLinkCache.getFromL1(shortCode);
         if (url != null) {
-            statisticsService.recordClick(shortCode);
+            incrementClickCount(shortCode);
             return url;
         }
 
         // Level 2: L2 Redis 缓存
         url = shortLinkCache.getFromL2(shortCode);
         if (url != null) {
-            statisticsService.recordClick(shortCode);
+            incrementClickCount(shortCode);
             return url;
         }
 
-        // Level 3a: DB 查询（非算法派生短链，如活动/直播间）
+        // Level 3: DCL — Redis 分布式锁 + 双重检查
+        url = resolveWithLock(shortCode);
+        incrementClickCount(shortCode);
+        return url;
+    }
+
+    /** DCL：SETNX 互斥锁 + 双重检查 L2 + 指数退避重试 */
+    private String resolveWithLock(String shortCode) {
+        String lockKey = LOCK_PREFIX + shortCode;
+        String lockValue = UUID.randomUUID().toString();
+        int maxRetries = 10;
+        long retryIntervalMs = 50;
+
+        for (int i = 0; i < maxRetries; i++) {
+            Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, lockValue, Duration.ofSeconds(10));
+
+            if (Boolean.TRUE.equals(locked)) {
+                try {
+                    // 双重检查 L2
+                    String url = shortLinkCache.getFromL2(shortCode);
+                    if (url != null) return url;
+
+                    // 兜底查询
+                    return resolveFromDbOrAlgorithm(shortCode);
+                } finally {
+                    // Lua 安全解锁：仅释放自己持有的锁
+                    redisTemplate.execute(unlockScript, List.of(lockKey), lockValue);
+                }
+            }
+
+            // 未获取到锁，等待后重试（指数退避）
+            try {
+                Thread.sleep(retryIntervalMs);
+                retryIntervalMs = Math.min(retryIntervalMs * 2, 500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+
+            // 每次重试都检查 L2，看锁持有者是否已经回填
+            String url = shortLinkCache.getFromL2(shortCode);
+            if (url != null) return url;
+        }
+
+        // 所有重试都失败，直接兜底查询
+        return resolveFromDbOrAlgorithm(shortCode);
+    }
+
+    /** 兜底查询：DB 非算法码 → 算法推导商品码 */
+    private String resolveFromDbOrAlgorithm(String shortCode) {
         if (!ShortCodeCodec.isProductShortCode(shortCode)) {
             ShortLink shortLink = shortLinkRepository.findByShortCode(shortCode)
                     .orElseThrow(() -> new BizException(404, "短链不存在"));
@@ -135,27 +203,19 @@ public class ShortLinkService {
                 throw new BizException(404, "短链已过期");
             }
             shortLinkCache.put(shortCode, shortLink.getOriginalUrl(), ttl);
-            statisticsService.recordClick(shortCode);
+            log.info("DB 查询: shortCode={}", shortCode);
             return shortLink.getOriginalUrl();
         }
 
-        // Level 3b: 算法推导（商品短链）
         try {
             long productId = ShortCodeCodec.decode(shortCode);
-            log.debug("算法推导短码: shortCode={}, productId={}", shortCode, productId);
-
-            // RPC 校验商品状态并获取 URL
             String productUrl = productShortLinkService.getAvailableProductUrl(productId);
             if (productUrl == null) {
                 throw new BizException(404, "商品不可售或已下架");
             }
-
-            // 异步回填缓存（商品短链默认 10 年有效期）
-            Duration ttl = Duration.ofDays(3650); // 10 年
+            Duration ttl = Duration.ofDays(3650);
             shortLinkCache.put(shortCode, productUrl, ttl);
-
-            statisticsService.recordClick(shortCode);
-            log.info("算法推导成功: shortCode={}, productId={}", shortCode, productId);
+            log.info("算法推导: shortCode={}, productId={}", shortCode, productId);
             return productUrl;
         } catch (IllegalArgumentException e) {
             log.warn("短码解码失败: shortCode={}", shortCode, e);
@@ -163,9 +223,6 @@ public class ShortLinkService {
         }
     }
 
-    /**
-     * 分页查询用户的短链
-     */
     public PageResult<ShortLinkVO> listByUser(Long userId, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page - 1, size);
         Page<ShortLink> pageResult = shortLinkRepository.findByUserId(userId, pageRequest);
@@ -175,18 +232,12 @@ public class ShortLinkService {
         return PageResult.of(records, (int) pageResult.getTotalElements(), page, size);
     }
 
-    /**
-     * 查询短链详情
-     */
     public ShortLinkVO findById(Long id) {
         ShortLink entity = shortLinkRepository.findById(id)
                 .orElseThrow(() -> new BizException(404, "短链不存在"));
         return buildVO(entity);
     }
 
-    /**
-     * 软删除短链
-     */
     @Transactional
     public void softDelete(Long id, Long userId) {
         ShortLink entity = shortLinkRepository.findById(id)
@@ -197,6 +248,11 @@ public class ShortLinkService {
         entity.setStatus(2);
         shortLinkRepository.save(entity);
         log.info("短链已软删除: id={}, shortCode={}, userId={}", id, entity.getShortCode(), userId);
+    }
+
+    private void incrementClickCount(String shortCode) {
+        statisticsService.recordClick(shortCode);
+        redisTemplate.opsForValue().increment(STATS_CNT_PREFIX + shortCode);
     }
 
     private ShortLinkVO buildVO(ShortLink entity) {

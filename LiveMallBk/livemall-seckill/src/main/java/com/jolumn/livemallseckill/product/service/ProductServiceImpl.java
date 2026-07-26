@@ -3,6 +3,7 @@ package com.jolumn.livemallseckill.product.service;
 import com.jolumn.livemallcommon.codec.ShortCodeCodec;
 import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.exception.BizException;
+import com.jolumn.livemallcommon.util.SnowflakeIdGenerator;
 import com.jolumn.livemallseckill.product.dto.ProductDTO;
 import com.jolumn.livemallseckill.product.dto.ProductPublishCmd;
 import com.jolumn.livemallseckill.product.dto.ProductUpdateCmd;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +31,17 @@ public class ProductServiceImpl implements ProductFacade {
 
     private final ProductRepository productRepository;
     private final StringRedisTemplate redisTemplate;
+    private final SnowflakeIdGenerator snowflakeIdGenerator;
+    private final String shareUrlBase;
 
     public ProductServiceImpl(ProductRepository productRepository,
-                              StringRedisTemplate redisTemplate) {
+                              StringRedisTemplate redisTemplate,
+                              SnowflakeIdGenerator snowflakeIdGenerator,
+                              @Value("${product.share-url-base:https://s.livemall.com}") String shareUrlBase) {
         this.productRepository = productRepository;
         this.redisTemplate = redisTemplate;
+        this.snowflakeIdGenerator = snowflakeIdGenerator;
+        this.shareUrlBase = shareUrlBase;
     }
 
     @Override
@@ -55,10 +63,12 @@ public class ProductServiceImpl implements ProductFacade {
         product.setStock(cmd.getStock());
         product.setStatus(1);
         product.setCategoryId(cmd.getCategoryId());
+        product.setId(snowflakeIdGenerator.nextId());
         product.setIsDeleted(0);
         product.setCreatedAt(LocalDateTime.now());
         product.setUpdatedAt(LocalDateTime.now());
 
+        // 3. 保存（V1 单表手动设雪花 ID，后续 ShardingSphere 接管后移除 setter）
         productRepository.save(product);
 
         String stockKey = STOCK_PREFIX + product.getId();
@@ -199,7 +209,7 @@ public class ProductServiceImpl implements ProductFacade {
         dto.setStock(product.getStock());
         dto.setStatus(product.getStatus());
         dto.setCategoryId(product.getCategoryId());
-        dto.setShareUrl("https://s.livemall.com/" + ShortCodeCodec.encodeProduct(product.getId()));
+        dto.setShareUrl(shareUrlBase + "/" + ShortCodeCodec.encodeProduct(product.getId()));
         dto.setCreatedAt(product.getCreatedAt());
         dto.setUpdatedAt(product.getUpdatedAt());
         return dto;

@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 public class ProductShortLinkServiceImpl implements ProductShortLinkService {
 
     private static final Logger log = LoggerFactory.getLogger(ProductShortLinkServiceImpl.class);
-    private static final String PRODUCT_URL_TEMPLATE = "https://www.livemall.com/product/%d";
+    private static final String PRODUCT_URL_TEMPLATE = "/product/%d";
 
     private final ProductRepository productRepository;
 
