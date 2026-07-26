@@ -4,6 +4,7 @@ import com.jolumn.livemallcommon.annotation.PublicApi;
 import com.jolumn.livemallcommon.annotation.RequireAuth;
 import com.jolumn.livemallcommon.annotation.RequireRole;
 import com.jolumn.livemallcommon.constant.RoleEnum;
+import com.jolumn.livemallcommon.context.UserContext;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallwebsocket.dto.RoomVO;
 import com.jolumn.livemallwebsocket.dto.StartRoomRequest;
@@ -35,9 +36,8 @@ public class LiveRoomController {
      */
     @PostMapping("/room/start")
     @RequireRole({RoleEnum.ANCHOR, RoleEnum.ADMIN})
-    public Result<RoomVO> start(@Valid @RequestBody StartRoomRequest request,
-                                @RequestHeader("X-User-Id") Long userId,
-                                @RequestHeader("X-User-Role") Integer role) {
+    public Result<RoomVO> start(@Valid @RequestBody StartRoomRequest request) {
+        Long userId = UserContext.currentUserId();
         // 从 user 服务获取主播名称
         String anchorName = userServiceClient.getNickname(userId);
         LiveRoom room = liveRoomService.start(
@@ -53,8 +53,8 @@ public class LiveRoomController {
      */
     @PostMapping("/room/stop")
     @RequireRole({RoleEnum.ANCHOR, RoleEnum.ADMIN})
-    public Result<Void> stop(@Valid @RequestBody StopRoomRequest request,
-                             @RequestHeader("X-User-Id") Long userId) {
+    public Result<Void> stop(@Valid @RequestBody StopRoomRequest request) {
+        Long userId = UserContext.currentUserId();
         liveRoomService.stop(request.getRoomId(), userId);
         return Result.ok();
     }
@@ -65,7 +65,8 @@ public class LiveRoomController {
     // 不要放在 /room/* 下 — Gateway public-get-paths 把 GET /live/room/* 全放行了
     @GetMapping("/my-active-room")
     @RequireAuth
-    public Result<RoomVO> getMyActive(@RequestHeader("X-User-Id") Long userId) {
+    public Result<RoomVO> getMyActive() {
+        Long userId = UserContext.currentUserId();
         return liveRoomService.findByAnchor(userId)
                 .map(room -> Result.ok(RoomVO.from(room)))
                 .orElse(Result.ok(null));
