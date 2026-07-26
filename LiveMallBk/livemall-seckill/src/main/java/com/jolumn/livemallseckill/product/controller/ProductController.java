@@ -1,6 +1,7 @@
 package com.jolumn.livemallseckill.product.controller;
 
 import com.jolumn.livemallcommon.annotation.RequireAuth;
+import com.jolumn.livemallcommon.context.UserContext;
 import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallseckill.product.dto.ProductDTO;
@@ -28,8 +29,8 @@ public class ProductController {
 
     @PostMapping("/publish")
     @RequireAuth
-    public Result<Long> publish(@Valid @RequestBody ProductPublishCmd cmd,
-                                @RequestHeader("X-User-Id") Long userId) {
+    public Result<Long> publish(@Valid @RequestBody ProductPublishCmd cmd) {
+        Long userId = UserContext.currentUserId();
         cmd.setUserId(userId);
         Long productId = productFacade.publish(cmd);
         log.info("商家发布商品: userId={}, productId={}", userId, productId);
@@ -60,8 +61,8 @@ public class ProductController {
     @PutMapping("/{id}")
     @RequireAuth
     public Result<Void> update(@PathVariable Long id,
-                                @Valid @RequestBody ProductUpdateCmd cmd,
-                                @RequestHeader("X-User-Id") Long userId) {
+                                @Valid @RequestBody ProductUpdateCmd cmd) {
+        Long userId = UserContext.currentUserId();
         productFacade.update(id, userId, cmd);
         return Result.ok();
     }
@@ -69,8 +70,8 @@ public class ProductController {
     @PutMapping("/{id}/status")
     @RequireAuth
     public Result<Void> updateStatus(@PathVariable Long id,
-                                      @RequestBody Map<String, Integer> body,
-                                      @RequestHeader("X-User-Id") Long userId) {
+                                       @RequestBody Map<String, Integer> body) {
+        Long userId = UserContext.currentUserId();
         Integer status = body.get("status");
         if (status == null || (status != 0 && status != 1)) {
             return Result.error(400, "status 必须为 0 或 1");
@@ -81,8 +82,8 @@ public class ProductController {
 
     @DeleteMapping("/{id}")
     @RequireAuth
-    public Result<Void> softDelete(@PathVariable Long id,
-                                    @RequestHeader("X-User-Id") Long userId) {
+    public Result<Void> softDelete(@PathVariable Long id) {
+        Long userId = UserContext.currentUserId();
         productFacade.softDelete(id, userId);
         return Result.ok();
     }
