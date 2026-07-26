@@ -21,6 +21,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '直播大厅' },
   },
   {
+    path: '/products',
+    name: 'ProductList',
+    component: () => import('@/views/c/ProductListPage.vue'),
+    meta: { title: '全部商品' },
+  },
+  {
+    path: '/product/:id',
+    name: 'ProductDetail',
+    component: () => import('@/views/c/ProductDetailPage.vue'),
+    meta: { title: '商品详情' },
+  },
+  {
     path: '/live/:roomId',
     name: 'LiveRoom',
     component: () => import('@/views/c/LiveRoomPage.vue'),
@@ -48,6 +60,9 @@ const routes: RouteRecordRaw[] = [
       { path: 'panel', name: 'StudioPage', component: () => import('@/views/b/StudioPage.vue'), meta: { title: '直播工作台' } },
       { path: 'seckill', name: 'SeckillAdmin', component: () => import('@/views/b/SeckillAdminPage.vue'), meta: { title: '秒杀管理' } },
       { path: 'shortlink', name: 'ShortLinkAdmin', component: () => import('@/views/b/ShortLinkAdminPage.vue'), meta: { title: '短链管理' } },
+      { path: 'products', name: 'ProductManage', component: () => import('@/views/b/ProductManagePage.vue'), meta: { title: '商品管理' } },
+      { path: 'products/publish', name: 'ProductPublish', component: () => import('@/views/b/ProductFormPage.vue'), meta: { title: '发布商品' } },
+      { path: 'products/:id/edit', name: 'ProductEdit', component: () => import('@/views/b/ProductFormPage.vue'), meta: { title: '编辑商品' } },
     ],
   },
 

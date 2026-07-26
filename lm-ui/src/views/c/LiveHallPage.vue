@@ -18,74 +18,33 @@
       </div>
     </header>
 
-    <!-- 商品推荐（占上半屏） -->
+    <!-- 商品推荐（两排横向滚动） -->
     <main class="content">
       <section class="product-section">
         <div class="product-header">
-          <h2 class="section-title">🔥 热卖商品</h2>
-          <a class="more-link" href="javascript:">查看更多 →</a>
+          <div>
+            <span class="section-badge">热卖</span>
+            <span class="section-title">限时秒杀</span>
+          </div>
+          <router-link to="/products" class="more-link">查看更多 →</router-link>
         </div>
         <div class="product-scroll">
-          <div class="product-card">
-            <div class="product-img">
-              <span class="product-tag">秒杀</span>
-            </div>
-            <div class="product-body">
-              <p class="product-title">商品名称最多两行显示</p>
-              <div class="product-price">
-                <span class="price-current">¥19.90</span>
-                <span class="price-original">¥99.00</span>
+          <div v-for="col in productCols" :key="col[0].id" class="product-col">
+            <div
+              v-for="p in col"
+              :key="p.id"
+              class="product-card"
+              @click="goProduct(p.id)"
+            >
+              <div class="product-img" :style="p.mainImage ? { backgroundImage: `url(${p.mainImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                <span class="share-overlay" @click.stop="onCopyShare(p)">转发</span>
               </div>
-              <div class="product-progress"><div class="progress-bar" style="width:67%"></div></div>
-              <div class="product-meta"><span>已抢 67%</span><span>剩余 12 件</span></div>
-            </div>
-          </div>
-          <div class="product-card">
-            <div class="product-img"><span class="product-tag">热卖</span></div>
-            <div class="product-body">
-              <p class="product-title">春季新款连衣裙</p>
-              <div class="product-price">
-                <span class="price-current">¥129.00</span>
-                <span class="price-original">¥359.00</span>
+              <div class="product-body">
+                <p class="product-title">{{ p.title }}</p>
+                <div class="product-price">
+                  <span class="price-current">¥{{ p.price.toFixed(2) }}</span>
+                </div>
               </div>
-              <div class="product-progress"><div class="progress-bar" style="width:45%"></div></div>
-              <div class="product-meta"><span>已抢 45%</span><span>剩余 55 件</span></div>
-            </div>
-          </div>
-          <div class="product-card">
-            <div class="product-img"><span class="product-tag">新品</span></div>
-            <div class="product-body">
-              <p class="product-title">无线蓝牙耳机 Pro</p>
-              <div class="product-price">
-                <span class="price-current">¥249.00</span>
-                <span class="price-original">¥499.00</span>
-              </div>
-              <div class="product-progress"><div class="progress-bar" style="width:80%"></div></div>
-              <div class="product-meta"><span>已抢 80%</span><span>剩余 20 件</span></div>
-            </div>
-          </div>
-          <div class="product-card">
-            <div class="product-img"><span class="product-tag">秒杀</span></div>
-            <div class="product-body">
-              <p class="product-title">智能手表 S3 运动版</p>
-              <div class="product-price">
-                <span class="price-current">¥599.00</span>
-                <span class="price-original">¥1299.00</span>
-              </div>
-              <div class="product-progress"><div class="progress-bar" style="width:33%"></div></div>
-              <div class="product-meta"><span>已抢 33%</span><span>剩余 67 件</span></div>
-            </div>
-          </div>
-          <div class="product-card">
-            <div class="product-img"><span class="product-tag">爆款</span></div>
-            <div class="product-body">
-              <p class="product-title">有机护肤品套装</p>
-              <div class="product-price">
-                <span class="price-current">¥399.00</span>
-                <span class="price-original">¥899.00</span>
-              </div>
-              <div class="product-progress"><div class="progress-bar" style="width:91%"></div></div>
-              <div class="product-meta"><span>已抢 91%</span><span>剩余 9 件</span></div>
             </div>
           </div>
         </div>
@@ -110,12 +69,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from '@/utils/toast'
 import LiveCard from '@/components/LiveCard.vue'
 import { useRoomStore } from '@/stores/room'
 import { useSeckillStore } from '@/stores/seckill'
 import { useAuthStore } from '@/stores/auth'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
+import { listProducts } from '@/api/product'
+import type { ProductDTO } from '@/types/product'
 
 const router = useRouter()
 const roomStore = useRoomStore()
@@ -136,9 +98,22 @@ const seckillRoomIds = computed(() => {
   )
 })
 
+const products = ref<ProductDTO[]>([])
+
+const productCols = computed(() => {
+  const cols: ProductDTO[][] = []
+  for (let i = 0; i < products.value.length; i += 2) cols.push(products.value.slice(i, i + 2))
+  return cols
+})
+
 onMounted(async () => {
   try {
-    await Promise.all([roomStore.fetchRoomList(), seckillStore.fetchActivities()])
+    const [prodRes] = await Promise.all([
+      listProducts({ size: 8 }),
+      roomStore.fetchRoomList(),
+      seckillStore.fetchActivities(),
+    ])
+    products.value = prodRes.data.records
     if (auth.isLoggedIn && !auth.user) {
       userStore.fetchProfile().catch(() => {})
     }
@@ -151,9 +126,21 @@ function goRoom(roomId: number) {
   router.push(`/live/${roomId}`)
 }
 
+function goProduct(id: number) {
+  router.push(`/product/${id}`)
+}
+
 async function onLogout() {
   await logout()
   router.push('/')
+}
+
+function onCopyShare(p: ProductDTO) {
+  navigator.clipboard.writeText(p.shareUrl).then(() => {
+    showToast('商品链接已复制', 'success')
+  }).catch(() => {
+    showToast('复制失败，请手动复制', 'error')
+  })
 }
 </script>
 
@@ -182,63 +169,84 @@ async function onLogout() {
 .logout-btn { padding: 6px 14px; font-size: 13px; }
 
 .content { padding: 24px; max-width: 1280px; margin: 0 auto; }
-.section-title { font-size: 18px; margin-bottom: 16px; }
+.section-title { font-size: 18px; margin-bottom: 16px; text-align: center; }
 .hint { color: var(--text-secondary); text-align: center; padding: 60px 0; }
 
-/* ---- 商品推荐（占上半屏）---- */
-.product-section { height: 50vh; display: flex; flex-direction: column; margin-bottom: 24px; }
-.product-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.product-header .section-title { margin-bottom: 0; }
+/* ---- 商品推荐（两排横向滚动）---- */
+.product-section { margin-bottom: 28px; }
+.product-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.product-header .more-link { position: absolute; right: 0; }
+.product-header .section-badge {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent-red);
+  margin-right: 10px;
+}
+.product-header .section-title { font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .more-link { font-size: 13px; color: var(--text-secondary); }
 .more-link:hover { color: var(--accent-red); }
 .product-scroll {
-  flex: 1;
   display: flex;
-  gap: 14px;
+  justify-content: center;
+  gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 8px;
+  padding: 0 4px 6px;
   scroll-snap-type: x mandatory;
 }
-.product-scroll::-webkit-scrollbar { height: 6px; }
-.product-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.product-scroll::-webkit-scrollbar { height: 4px; }
+.product-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.product-col {
+  flex: 0 0 175px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+}
 .product-card {
-  flex: 0 0 240px;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  scroll-snap-align: start;
   transition: transform 0.15s, border-color 0.15s;
+  cursor: pointer;
 }
-.product-card:hover { transform: translateY(-4px); border-color: var(--accent-red); }
+.product-card:hover { transform: translateY(-2px); border-color: var(--accent-red); }
 .product-img {
-  height: 160px;
+  height: 120px;
   background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
-  padding: 8px;
-  flex-shrink: 0;
+  padding: 6px;
+  position: relative;
 }
-.product-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: var(--accent-red);
+.share-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+  letter-spacing: 2px;
 }
-.product-body { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.product-title { font-size: 13px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.product-price { display: flex; align-items: baseline; gap: 8px; }
-.price-current { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--accent-red); }
-.price-original { font-size: 12px; color: var(--text-secondary); text-decoration: line-through; }
-.product-progress { height: 4px; border-radius: 2px; background: rgba(255,44,85,0.15); overflow: hidden; }
-.progress-bar { height: 100%; border-radius: 2px; background: var(--accent-red); }
-.product-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+.product-card:hover .share-overlay { opacity: 1; }
+.product-body { padding: 8px 10px 10px; }
+.product-title { font-size: 12px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 6px; color: var(--text-primary); }
+.product-price { display: flex; align-items: baseline; gap: 6px; }
+.price-current { font-family: var(--font-mono); font-size: 15px; font-weight: 700; color: var(--accent-red); }
 
 .grid {
   display: grid;
