@@ -18,8 +18,79 @@
       </div>
     </header>
 
-    <!-- 直播间网格 -->
+    <!-- 商品推荐（占上半屏） -->
     <main class="content">
+      <section class="product-section">
+        <div class="product-header">
+          <h2 class="section-title">🔥 热卖商品</h2>
+          <a class="more-link" href="javascript:">查看更多 →</a>
+        </div>
+        <div class="product-scroll">
+          <div class="product-card">
+            <div class="product-img">
+              <span class="product-tag">秒杀</span>
+            </div>
+            <div class="product-body">
+              <p class="product-title">商品名称最多两行显示</p>
+              <div class="product-price">
+                <span class="price-current">¥19.90</span>
+                <span class="price-original">¥99.00</span>
+              </div>
+              <div class="product-progress"><div class="progress-bar" style="width:67%"></div></div>
+              <div class="product-meta"><span>已抢 67%</span><span>剩余 12 件</span></div>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-img"><span class="product-tag">热卖</span></div>
+            <div class="product-body">
+              <p class="product-title">春季新款连衣裙</p>
+              <div class="product-price">
+                <span class="price-current">¥129.00</span>
+                <span class="price-original">¥359.00</span>
+              </div>
+              <div class="product-progress"><div class="progress-bar" style="width:45%"></div></div>
+              <div class="product-meta"><span>已抢 45%</span><span>剩余 55 件</span></div>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-img"><span class="product-tag">新品</span></div>
+            <div class="product-body">
+              <p class="product-title">无线蓝牙耳机 Pro</p>
+              <div class="product-price">
+                <span class="price-current">¥249.00</span>
+                <span class="price-original">¥499.00</span>
+              </div>
+              <div class="product-progress"><div class="progress-bar" style="width:80%"></div></div>
+              <div class="product-meta"><span>已抢 80%</span><span>剩余 20 件</span></div>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-img"><span class="product-tag">秒杀</span></div>
+            <div class="product-body">
+              <p class="product-title">智能手表 S3 运动版</p>
+              <div class="product-price">
+                <span class="price-current">¥599.00</span>
+                <span class="price-original">¥1299.00</span>
+              </div>
+              <div class="product-progress"><div class="progress-bar" style="width:33%"></div></div>
+              <div class="product-meta"><span>已抢 33%</span><span>剩余 67 件</span></div>
+            </div>
+          </div>
+          <div class="product-card">
+            <div class="product-img"><span class="product-tag">爆款</span></div>
+            <div class="product-body">
+              <p class="product-title">有机护肤品套装</p>
+              <div class="product-price">
+                <span class="price-current">¥399.00</span>
+                <span class="price-original">¥899.00</span>
+              </div>
+              <div class="product-progress"><div class="progress-bar" style="width:91%"></div></div>
+              <div class="product-meta"><span>已抢 91%</span><span>剩余 9 件</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <h2 class="section-title">正在直播</h2>
       <div v-if="loading" class="hint">加载中...</div>
       <div v-else-if="roomStore.roomList.length === 0" class="hint">暂无直播</div>
@@ -113,6 +184,62 @@ async function onLogout() {
 .content { padding: 24px; max-width: 1280px; margin: 0 auto; }
 .section-title { font-size: 18px; margin-bottom: 16px; }
 .hint { color: var(--text-secondary); text-align: center; padding: 60px 0; }
+
+/* ---- 商品推荐（占上半屏）---- */
+.product-section { height: 50vh; display: flex; flex-direction: column; margin-bottom: 24px; }
+.product-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.product-header .section-title { margin-bottom: 0; }
+.more-link { font-size: 13px; color: var(--text-secondary); }
+.more-link:hover { color: var(--accent-red); }
+.product-scroll {
+  flex: 1;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+}
+.product-scroll::-webkit-scrollbar { height: 6px; }
+.product-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.product-card {
+  flex: 0 0 240px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.product-card:hover { transform: translateY(-4px); border-color: var(--accent-red); }
+.product-img {
+  height: 160px;
+  background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 8px;
+  flex-shrink: 0;
+}
+.product-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--accent-red);
+  color: #fff;
+  font-weight: 700;
+}
+.product-body { padding: 10px 12px 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.product-title { font-size: 13px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.product-price { display: flex; align-items: baseline; gap: 8px; }
+.price-current { font-family: var(--font-mono); font-size: 18px; font-weight: 700; color: var(--accent-red); }
+.price-original { font-size: 12px; color: var(--text-secondary); text-decoration: line-through; }
+.product-progress { height: 4px; border-radius: 2px; background: rgba(255,44,85,0.15); overflow: hidden; }
+.progress-bar { height: 100%; border-radius: 2px; background: var(--accent-red); }
+.product-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

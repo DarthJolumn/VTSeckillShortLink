@@ -9,6 +9,7 @@
       <aside class="side card">
         <router-link to="/streamer/panel" class="side-link" active-class="active">🎥 直播工作台</router-link>
         <router-link to="/streamer/seckill" class="side-link" active-class="active">⚡ 秒杀管理</router-link>
+        <router-link to="/streamer/shortlink" class="side-link" active-class="active">🔗 短链管理</router-link>
       </aside>
       <main class="content">
         <router-view />

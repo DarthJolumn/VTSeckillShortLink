@@ -47,6 +47,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: 'panel', name: 'StudioPage', component: () => import('@/views/b/StudioPage.vue'), meta: { title: '直播工作台' } },
       { path: 'seckill', name: 'SeckillAdmin', component: () => import('@/views/b/SeckillAdminPage.vue'), meta: { title: '秒杀管理' } },
+      { path: 'shortlink', name: 'ShortLinkAdmin', component: () => import('@/views/b/ShortLinkAdminPage.vue'), meta: { title: '短链管理' } },
     ],
   },
 
