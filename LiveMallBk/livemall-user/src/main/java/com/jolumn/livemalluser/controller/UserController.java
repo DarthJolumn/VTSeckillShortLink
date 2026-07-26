@@ -1,6 +1,7 @@
 package com.jolumn.livemalluser.controller;
 
 import com.jolumn.livemallcommon.annotation.RequireAuth;
+import com.jolumn.livemallcommon.context.UserContext;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemalluser.dto.DeviceInfo;
 import com.jolumn.livemalluser.dto.UpdatePasswordRequest;
@@ -26,7 +27,8 @@ public class UserController {
 
     @GetMapping("/profile")
     @RequireAuth
-    public Result<UserProfileVO> getProfile(@RequestHeader("X-User-Id") Long userId) {
+    public Result<UserProfileVO> getProfile() {
+        Long userId = UserContext.currentUserId();
         User user = userService.findById(userId);
         UserProfileVO vo = toProfileVO(user);
         return Result.ok(vo);
@@ -34,7 +36,8 @@ public class UserController {
 
     @GetMapping("/balance")
     @RequireAuth
-    public Result<java.math.BigDecimal> getBalance(@RequestHeader("X-User-Id") Long userId) {
+    public Result<java.math.BigDecimal> getBalance() {
+        Long userId = UserContext.currentUserId();
         return Result.ok(userService.getBalance(userId));
     }
 
@@ -58,8 +61,8 @@ public class UserController {
 
     @GetMapping("/devices")
     public Result<List<DeviceInfo>> getDevices(
-            @RequestHeader("X-User-Id") Long userId,
             @RequestHeader(value = "X-Device-Id", required = false) String deviceId) {
+        Long userId = UserContext.currentUserId();
         List<DeviceInfo> devices = userService.getDevices(userId);
         if (deviceId != null) {
             devices.stream()
@@ -72,18 +75,16 @@ public class UserController {
 
     @DeleteMapping("/devices/{deviceId}")
     @RequireAuth
-    public Result<Void> kickDevice(
-            @RequestHeader("X-User-Id") Long userId,
-            @PathVariable String deviceId) {
+    public Result<Void> kickDevice(@PathVariable String deviceId) {
+        Long userId = UserContext.currentUserId();
         userService.kickDevice(userId, deviceId);
         return Result.ok();
     }
 
     @PutMapping("/profile")
     @RequireAuth
-    public Result<UserProfileVO> updateProfile(
-            @RequestHeader("X-User-Id") Long userId,
-            @Valid @RequestBody UpdateProfileRequest request) {
+    public Result<UserProfileVO> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        Long userId = UserContext.currentUserId();
         userService.updateProfile(userId, request.getNickname(), request.getAvatar(), request.getPhone());
         User user = userService.findById(userId);
         return Result.ok(toProfileVO(user));
@@ -91,9 +92,8 @@ public class UserController {
 
     @PutMapping("/password")
     @RequireAuth
-    public Result<Void> updatePassword(
-            @RequestHeader("X-User-Id") Long userId,
-            @Valid @RequestBody UpdatePasswordRequest request) {
+    public Result<Void> updatePassword(@Valid @RequestBody UpdatePasswordRequest request) {
+        Long userId = UserContext.currentUserId();
         userService.updatePassword(userId, request.getOldPassword(), request.getNewPassword());
         return Result.ok();
     }
