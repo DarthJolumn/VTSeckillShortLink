@@ -82,7 +82,7 @@ public class SeckillController {
             if (kafkaTemplate != null) {
                 String msg = userId + ":" + activityId + ":" + orderNo;
                 try {
-                    kafkaTemplate.send("seckill-order", msg).get(3, TimeUnit.SECONDS);
+                    kafkaTemplate.send("seckill-order", msg);  // 纯异步，不阻塞等待 ACK
                 } catch (Exception e) {
                     // Fail Fast: Kafka 不可用 → 回补库存 → 返回 503
                     log.error("Kafka 不可用, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
