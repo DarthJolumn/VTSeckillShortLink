@@ -39,14 +39,16 @@ spring:
   # ====== Redis Cluster（Lua 库存扣减） ======
   data:
     redis:
-      cluster:
-        nodes:
-          - 192.168.147.132:6381
-          - 192.168.147.132:6382
-          - 192.168.147.132:6383
+      # cluster: (切换回 localhost)
+      # nodes:
+      #   - 192.168.147.132:6381
+      #   - 192.168.147.132:6382
+      #   - 192.168.147.132:6383
         # 强制读 Master，禁读写分离，避免主从异步复制读到过期库存
-        read-from: MASTER
-      password: redis123
+      # read-from: MASTER
+      host: localhost
+      port: 6379
+      password: 123456
       timeout: 3000ms
       lettuce:
         pool:

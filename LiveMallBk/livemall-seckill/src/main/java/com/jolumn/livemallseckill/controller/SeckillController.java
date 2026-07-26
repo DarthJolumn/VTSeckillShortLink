@@ -80,9 +80,11 @@ public class SeckillController {
         // Lua 扣减成功 → 发 Kafka（异步）
         if ("ok".equals(result)) {
             if (kafkaTemplate != null) {
+//                String msg = userId + ":" + activityId + ":" + orderNo;
                 String msg = userId + ":" + activityId + ":" + orderNo;
                 try {
-                    kafkaTemplate.send("seckill-order", msg);  // 纯异步，不阻塞等待 ACK
+//                    kafkaTemplate.send("seckill-order", msg).get(3, TimeUnit.SECONDS);  // 纯异步，不阻塞等待 ACK
+                    kafkaTemplate.send("seckill-order", msg);
                 } catch (Exception e) {
                     // Fail Fast: Kafka 不可用 → 回补库存 → 返回 503
                     log.error("Kafka 不可用, Fail Fast 回补库存: activityId={}, userId={}", activityId, userId);
