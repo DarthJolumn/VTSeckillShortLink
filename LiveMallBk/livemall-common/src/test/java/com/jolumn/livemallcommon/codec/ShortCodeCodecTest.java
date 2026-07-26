@@ -11,14 +11,9 @@ class ShortCodeCodecTest {
         long productId = 1876543210987654321L;
         String shortCode = ShortCodeCodec.encodeProduct(productId);
 
-        System.out.println("Product ID: " + productId);
-        System.out.println("Short Code: " + shortCode);
-
-        // 验证前缀
         assertEquals('P', ShortCodeCodec.getPrefix(shortCode));
         assertTrue(ShortCodeCodec.isProductShortCode(shortCode));
 
-        // 验证双向推导（全 64 位，无掩码截断）
         long decoded = ShortCodeCodec.decode(shortCode);
         assertEquals(productId, decoded);
     }
@@ -28,11 +23,11 @@ class ShortCodeCodecTest {
         long activityId = 123456789L;
         String shortCode = ShortCodeCodec.encodeActivity(activityId);
 
-        System.out.println("Activity ID: " + activityId);
-        System.out.println("Short Code: " + shortCode);
-
         assertEquals('A', ShortCodeCodec.getPrefix(shortCode));
         assertTrue(ShortCodeCodec.isActivityShortCode(shortCode));
+
+        long decoded = ShortCodeCodec.decode(shortCode);
+        assertEquals(activityId, decoded);
     }
 
     @Test
@@ -40,11 +35,11 @@ class ShortCodeCodecTest {
         long liveId = 987654321L;
         String shortCode = ShortCodeCodec.encodeLive(liveId);
 
-        System.out.println("Live ID: " + liveId);
-        System.out.println("Short Code: " + shortCode);
-
         assertEquals('L', ShortCodeCodec.getPrefix(shortCode));
         assertTrue(ShortCodeCodec.isLiveShortCode(shortCode));
+
+        long decoded = ShortCodeCodec.decode(shortCode);
+        assertEquals(liveId, decoded);
     }
 
     @Test
@@ -55,26 +50,92 @@ class ShortCodeCodecTest {
     }
 
     @Test
+    void testDecodeInvalidBase58Char() {
+        assertThrows(IllegalArgumentException.class, () -> ShortCodeCodec.decode("P0"));
+        assertThrows(IllegalArgumentException.class, () -> ShortCodeCodec.decode("AOI"));
+    }
+
+    @Test
+    void testPrefixGetters() {
+        assertEquals('P', ShortCodeCodec.getPrefix("Pabc123"));
+        assertEquals('A', ShortCodeCodec.getPrefix("Axyz789"));
+        assertEquals('L', ShortCodeCodec.getPrefix("Ltest001"));
+        assertThrows(IllegalArgumentException.class, () -> ShortCodeCodec.getPrefix(""));
+        assertThrows(IllegalArgumentException.class, () -> ShortCodeCodec.getPrefix(null));
+    }
+
+    @Test
+    void testPrefixCheckers() {
+        assertTrue(ShortCodeCodec.isProductShortCode("Pabc"));
+        assertFalse(ShortCodeCodec.isProductShortCode("Aabc"));
+        assertFalse(ShortCodeCodec.isProductShortCode("Labc"));
+
+        assertTrue(ShortCodeCodec.isActivityShortCode("Aabc"));
+        assertFalse(ShortCodeCodec.isActivityShortCode("Pabc"));
+
+        assertTrue(ShortCodeCodec.isLiveShortCode("Labc"));
+        assertFalse(ShortCodeCodec.isLiveShortCode("Pabc"));
+    }
+
+    @Test
     void testBase58NoConfusingChars() {
-        // 验证 Base58 不包含 0, O, I, l
         for (long i = 0; i < 1000; i++) {
             String shortCode = ShortCodeCodec.encodeProduct(i);
-            assertFalse(shortCode.contains("0"), "不应包含 0: " + shortCode);
-            assertFalse(shortCode.contains("O"), "不应包含 O: " + shortCode);
-            assertFalse(shortCode.contains("I"), "不应包含 I: " + shortCode);
-            assertFalse(shortCode.contains("l"), "不应包含 l: " + shortCode);
+            assertFalse(shortCode.contains("0"), "should not contain 0: " + shortCode);
+            assertFalse(shortCode.contains("O"), "should not contain O: " + shortCode);
+            assertFalse(shortCode.contains("I"), "should not contain I: " + shortCode);
+            assertFalse(shortCode.contains("l"), "should not contain l: " + shortCode);
+        }
+    }
+
+    @Test
+    void testEncodeZero() {
+        String shortCode = ShortCodeCodec.encodeProduct(0L);
+        assertTrue(shortCode.length() >= 2);
+        assertEquals('P', shortCode.charAt(0));
+        long decoded = ShortCodeCodec.decode(shortCode);
+        assertEquals(0L, decoded);
+    }
+
+    @Test
+    void testEncodeMaxLong() {
+        long productId = Long.MAX_VALUE;
+        String shortCode = ShortCodeCodec.encodeProduct(productId);
+        long decoded = ShortCodeCodec.decode(shortCode);
+        assertEquals(productId, decoded);
+    }
+
+    @Test
+    void testEncodeLargeValues() {
+        long[] ids = {
+            202607010001001L,
+            207032394450997248L,
+            0x7FFFFFFFFFFFFFFFL,
+            0x0000FFFFFFFFFFFFL,
+        };
+        for (long id : ids) {
+            String shortCode = ShortCodeCodec.encodeProduct(id);
+            long decoded = ShortCodeCodec.decode(shortCode);
+            assertEquals(id, decoded, "Round trip failed for: " + id);
         }
     }
 
     @Test
     void testRoundTrip() {
-        // 测试大量 ID 的双向推导
         for (long i = 1; i <= 10000; i++) {
             long productId = i * 1000000L;
             String shortCode = ShortCodeCodec.encodeProduct(productId);
             long decoded = ShortCodeCodec.decode(shortCode);
-            assertEquals(productId, decoded,
-                    "Round trip failed for ID: " + productId);
+            assertEquals(productId, decoded, "Round trip failed for ID: " + productId);
+        }
+    }
+
+    @Test
+    void testShortCodeLength() {
+        for (long i = 1; i <= 10000; i++) {
+            String shortCode = ShortCodeCodec.encodeProduct(i * 1000000L);
+            assertTrue(shortCode.length() <= 12,
+                    "Short code too long (" + shortCode.length() + "): " + shortCode);
         }
     }
 }

@@ -3,8 +3,11 @@ package com.jolumn.livemallshortlink.controller;
 import com.jolumn.livemallcommon.annotation.RequireAuth;
 import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.dto.Result;
+import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallshortlink.dto.ShortLinkVO;
+import com.jolumn.livemallshortlink.service.RateLimitService;
 import com.jolumn.livemallshortlink.service.ShortLinkService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,11 +22,18 @@ import java.util.Map;
 public class ShortLinkController {
 
     private static final Logger log = LoggerFactory.getLogger(ShortLinkController.class);
+    private static final int SHORT_CODE_RATE_LIMIT = 1000;
+    private static final int SHORT_CODE_RATE_WINDOW = 60;
+    private static final int IP_RATE_LIMIT = 100;
+    private static final int IP_RATE_WINDOW = 60;
 
     private final ShortLinkService shortLinkService;
+    private final RateLimitService rateLimitService;
 
-    public ShortLinkController(ShortLinkService shortLinkService) {
+    public ShortLinkController(ShortLinkService shortLinkService,
+                               RateLimitService rateLimitService) {
         this.shortLinkService = shortLinkService;
+        this.rateLimitService = rateLimitService;
     }
 
     // ===================== 公开接口 =====================
@@ -39,13 +49,38 @@ public class ShortLinkController {
     }
 
     /**
-     * 解析短链（公开）
+     * 解析短链（公开，短码维度 1000次/分钟 + IP维度 100次/分钟）
      * GET /s/{shortCode} → 返回原始 URL，前端自行跳转
      */
     @GetMapping("/{shortCode}")
-    public Result<Map<String, String>> resolve(@PathVariable String shortCode) {
+    public Result<Map<String, String>> resolve(@PathVariable String shortCode, HttpServletRequest request) {
+        String clientIp = getClientIp(request);
+        String ipLimitKey = "s:ratelimit:ip:" + clientIp;
+        if (!rateLimitService.tryAcquire(ipLimitKey, IP_RATE_LIMIT, IP_RATE_WINDOW)) {
+            throw new BizException(429, "请求过于频繁，请稍后再试");
+        }
+
+        String codeLimitKey = "s:ratelimit:code:" + shortCode;
+        if (!rateLimitService.tryAcquire(codeLimitKey, SHORT_CODE_RATE_LIMIT, SHORT_CODE_RATE_WINDOW)) {
+            throw new BizException(429, "该短链访问过于频繁，请稍后再试");
+        }
+
         String originalUrl = shortLinkService.getOriginalUrl(shortCode);
         return Result.ok(Map.of("shortCode", shortCode, "originalUrl", originalUrl));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 
     // ===================== 管理接口（需登录） =====================

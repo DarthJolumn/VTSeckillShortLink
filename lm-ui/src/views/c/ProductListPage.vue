@@ -52,6 +52,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { listProducts } from '@/api/product'
 import type { ProductDTO } from '@/types/product'
+import { toLocalShareUrl } from '@/utils/shareUrl'
 
 const router = useRouter()
 
@@ -109,7 +110,7 @@ function goProduct(id: number) {
 }
 
 function onCopyShare(p: ProductDTO) {
-  navigator.clipboard.writeText(p.shareUrl).then(() => {
+  navigator.clipboard.writeText(toLocalShareUrl(p.shareUrl)).then(() => {
     showToast('商品链接已复制', 'success')
   }).catch(() => {
     showToast('复制失败', 'error')

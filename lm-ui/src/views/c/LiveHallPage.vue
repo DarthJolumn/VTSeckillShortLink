@@ -6,9 +6,11 @@
       <div class="nav-right">
         <template v-if="auth.isLoggedIn">
           <router-link to="/user/orders" class="user-entry">📦 订单</router-link>
-          <router-link v-if="auth.isAnchor" to="/streamer/panel" class="streamer-entry">
-            🎥 主播中心
-          </router-link>
+          <template v-if="auth.isAnchor">
+            <router-link to="/product/publish" class="streamer-entry">📦 发布</router-link>
+            <router-link to="/product/manage" class="streamer-entry">📋 商品管理</router-link>
+            <router-link to="/streamer/panel" class="streamer-entry">🎥 主播中心</router-link>
+          </template>
           <router-link to="/user/profile" class="user-entry">
             👤 {{ userStore.nickname || '个人中心' }}
           </router-link>
@@ -78,6 +80,7 @@ import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { listProducts } from '@/api/product'
 import type { ProductDTO } from '@/types/product'
+import { toLocalShareUrl } from '@/utils/shareUrl'
 
 const router = useRouter()
 const roomStore = useRoomStore()
@@ -136,7 +139,7 @@ async function onLogout() {
 }
 
 function onCopyShare(p: ProductDTO) {
-  navigator.clipboard.writeText(p.shareUrl).then(() => {
+  navigator.clipboard.writeText(toLocalShareUrl(p.shareUrl)).then(() => {
     showToast('商品链接已复制', 'success')
   }).catch(() => {
     showToast('复制失败，请手动复制', 'error')

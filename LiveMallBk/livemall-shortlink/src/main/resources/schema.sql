@@ -24,3 +24,16 @@ CREATE TABLE t_short_link (
     INDEX idx_user_id (user_id),
     INDEX idx_expire (expire_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='短链映射表';
+
+-- t_link_click_stats — 点击统计表（按天分区）
+DROP TABLE IF EXISTS t_link_click_stats;
+CREATE TABLE t_link_click_stats (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    short_code      VARCHAR(20) NOT NULL COMMENT '短码',
+    click_date      DATE NOT NULL COMMENT '点击日期',
+    click_count     INT DEFAULT 0 COMMENT '当日点击次数',
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE INDEX uk_code_date (short_code, click_date),
+    INDEX idx_click_date (click_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='点击统计表（按天）';

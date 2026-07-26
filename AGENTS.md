@@ -153,6 +153,97 @@ Integer role = ((Number) claims.get("role")).intValue();
 
 - **P0-1**: refundOrder() 不退库存 — 无支付模块，等支付上线后补全
 
+## 商品短链一体化架构（2026-07-26）
+
+### 核心设计
+
+**算法即契约**：雪花 ID 全 64 位 Base58 编码派生，实现 ProductId ↔ ShortCode 双向确定性推导。
+
+| 维度 | 旧方案（DB 映射） | 新方案（算法派生） |
+|------|----------------|----------------|
+| 一致性 | 需分布式事务 | 数学保证，天然一致 |
+| 存储成本 | 全量落库 | 商品短链 0 存储 |
+| 发布性能 | 额外 DB 写入 | +0ms 纯内存计算 |
+| 容灾能力 | 依赖 DB 可用性 | DB 宕机仍可算法推导 |
+
+### 短码格式
+
+```
+短码 = 版本前缀 + Base58(雪花ID全64位)
+示例: P48zVYK5Fg8Kp2mN9 (P=Product)
+前缀: P=商品, A=活动, L=直播间
+```
+
+> **注意**：原实现使用 `id & 0x0000FFFFFFFFFFFFL`（48 位掩码），但 Snowflake ID 最大约 57 位（35 位时间戳 + 22 位工作节点/序列），高位被截断 → 解码后 ID 与存储 ID 不匹配 → 短链跳转 404。2026-07-26 修复：取消掩码，使用全 64 位编码。短码长度从 ≤10 变为 ≤11 字符，仍在合理范围。
+
+### 6. 多级缓存与纵深防御
+
+设计 L1 Caffeine (3s TTL) + L2 Redis (24h±10% TTL) 二级缓存体系，L1 拦截热点消除网络 IO，L2 全局共享承载非热点读，TTL 随机偏移规避雪崩风险。
+
+### 7. 数据一致性与幂等保护
+
+采用 Cache Aside 模式保障数据一致性，严格遵循先更新 DB 再删除 Redis 的顺序，利用删除操作的幂等性杜绝并发写导致的脏数据问题。L1 依赖 3s 自然过期同步，兼顾性能与最终一致性。
+
+### 8. 高可用保障与性能指标
+
+接入层 Sentinel 热点熔断 + 网关限流防刷，封禁标记 O(1)检查不阻塞主链路；单机压测 P99 稳定 < 15ms,缓存命中率>99.5%,生成接口零脏数据。
+
+### 9. Gateway 短码格式校验
+
+`ShortCodeValidationFilter.java`（`Order=HIGHEST_PRECEDENCE+10`，认证之前）：
+
+- 算法码：`/^[PAL][1-9A-HJ-NP-Za-km-z]{1,11}$/`（前缀 P/A/L + Base58 1-11 位）
+- DB 码：`/^[a-zA-Z0-9]{2,20}$/`（纯字母数字 2-20 位）
+- 纯内存正则匹配，微秒级，不合法直接 400，不进后续链路
+
+**统计层**：Redis Hash `HINCRBY` 实时计数 + Kafka 异步 → MySQL `t_link_click_stats` 按天持久化，定时任务每小时聚合。
+
+**安全层**：Service 维度双限流（短码 1000次/分钟 + IP 100次/分钟），Redis Lua 滑动窗口。
+
+### 服务职责
+
+| 服务 | 职责 |
+|------|------|
+| livemall-common | ShortCodeCodec 编解码器（算法契约） |
+| livemall-seckill.product | 商品发布 + ProductShortLinkService RPC 接口（返回相对路径） |
+| livemall-shortlink | 统一解析入口（返回 JSON） + 三级链路 + 点击统计 + 限流 |
+
+### 关键文件
+
+- `livemall-common/.../codec/ShortCodeCodec.java` — Base58 全 64 位编解码器
+- `livemall-common/.../api/ProductShortLinkService.java` — RPC 接口
+- `livemall-seckill/.../product/service/ProductShortLinkServiceImpl.java` — RPC 实现（返回 `/product/{id}`）
+- `livemall-shortlink/.../service/ShortLinkService.java` — 企业级三级解析
+- `livemall-shortlink/.../service/ShortLinkCache.java` — Redis Hash + Caffeine L1
+- `livemall-shortlink/.../service/RateLimitService.java` — Redis Lua 滑动窗口限流
+- `livemall-shortlink/.../consumer/StatisticsConsumer.java` — Kafka → MySQL 点击统计
+- `livemall-gateway/.../filter/ShortCodeValidationFilter.java` — Gateway 短码格式校验
+
+### 商品数据库
+
+- 独立库 `livemall_product_1`（16 张分表 t_product_0~15）
+- 订单表 `t_product_order` 在同一库
+- 商品短链不落库，由算法派生
+
+### 订单表（商品订单 vs 秒杀订单）
+
+| 维度 | 商品订单 | 秒杀订单 |
+|------|---------|---------|
+| 库 | livemall_product_1 | livemall |
+| 场景 | 日常购买 | 限时抢购 |
+| 数量 | 支持多件 | 固定 1 件 |
+| 库存 | DB 乐观锁扣减 | Redis Lua 扣减 |
+| 一人一单 | 否（可复购） | 是（per activity） |
+| 流程 | 同步落库 | Lua → Kafka → 异步落库 |
+
+### 跨服务数据关联
+
+- 秒杀订单 `t_seckill_order` 中有 `product_id` 字段，通过 ID 关联商品
+- 跨库不做外键约束，订单表存商品快照（名称/价格/图片）
+- 查询商品详情时通过 `product_id` 调用商品服务 RPC
+
+
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

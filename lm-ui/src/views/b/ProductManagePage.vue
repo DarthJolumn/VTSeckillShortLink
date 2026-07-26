@@ -1,9 +1,10 @@
 <template>
   <div class="product-manage">
-    <div class="page-head">
-      <h3>商品管理</h3>
-      <router-link to="/streamer/products/publish" class="btn-primary">+ 发布商品</router-link>
-    </div>
+    <header class="nav">
+      <router-link to="/" class="logo">Live<span>Mall</span></router-link>
+      <span class="crumb">商品管理</span>
+      <router-link to="/product/publish" class="btn-primary">+ 发布商品</router-link>
+    </header>
 
     <div v-if="loading" class="hint">加载中...</div>
 
@@ -36,7 +37,7 @@
               </span>
             </td>
             <td class="share-cell">
-              <span class="share-text" @click="onCopy(p)">{{ p.shareUrl }}</span>
+              <span class="share-text" @click="onCopy(p)">{{ toLocalShareUrl(p.shareUrl) }}</span>
             </td>
             <td class="action-cell">
               <button class="btn-sm" @click="onEdit(p)">编辑</button>
@@ -59,6 +60,7 @@ import { useAuthStore } from '@/stores/auth'
 import { showToast } from '@/utils/toast'
 import { listProducts, updateProductStatus, deleteProduct } from '@/api/product'
 import type { ProductDTO } from '@/types/product'
+import { toLocalShareUrl } from '@/utils/shareUrl'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -103,7 +105,7 @@ async function onDelete(p: ProductDTO) {
 }
 
 function onCopy(p: ProductDTO) {
-  navigator.clipboard.writeText(p.shareUrl).then(() => {
+  navigator.clipboard.writeText(toLocalShareUrl(p.shareUrl)).then(() => {
     showToast('链接已复制', 'success')
   })
 }
@@ -112,9 +114,24 @@ onMounted(fetchProducts)
 </script>
 
 <style scoped>
-.product-manage { display: flex; flex-direction: column; gap: 16px; }
-.page-head { display: flex; align-items: center; justify-content: space-between; }
-.page-head h3 { font-size: 16px; }
+  .product-manage { min-height: 100vh; }
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: rgba(15, 15, 20, 0.9);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+.logo { font-size: 22px; font-weight: 800; }
+.logo span { color: var(--accent-red); }
+.crumb { font-size: 14px; color: var(--text-secondary); flex: 1; }
+
+.product-manage > :not(.nav) { padding: 24px; max-width: 1280px; margin: 0 auto; }
 
 .hint { color: var(--text-secondary); text-align: center; padding: 40px 0; font-size: 14px; }
 .link { color: var(--accent-red); }

@@ -2,7 +2,7 @@
   <div class="product-form-page">
     <div class="page-head">
       <h3>{{ isEdit ? '编辑商品' : '发布商品' }}</h3>
-      <router-link to="/streamer/products" class="btn-ghost">← 返回管理</router-link>
+      <router-link to="/product/manage" class="btn-ghost">← 返回管理</router-link>
     </div>
 
     <div v-if="loading" class="hint">加载中...</div>
@@ -53,10 +53,12 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from '@/utils/toast'
+import { useAuthStore } from '@/stores/auth'
 import { getProductById, publishProduct, updateProduct } from '@/api/product'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const productId = computed(() => Number(route.params.id) || 0)
 const isEdit = computed(() => !!route.params.id)
@@ -111,6 +113,7 @@ async function onSubmit() {
       showToast('保存成功', 'success')
     } else {
       await publishProduct({
+        userId: auth.user!.id,
         title: form.title,
         subtitle: form.subtitle || undefined,
         price: form.price,
@@ -120,7 +123,7 @@ async function onSubmit() {
       })
       showToast('发布成功', 'success')
     }
-    router.push('/streamer/products')
+    router.push('/product/manage')
   } catch (e: any) {
     showToast(e?.message || '操作失败', 'error')
   } finally {

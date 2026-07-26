@@ -12,6 +12,7 @@ export interface ProductListParams {
 }
 
 export interface ProductPublishCmd {
+  userId: number
   title: string
   subtitle?: string
   mainImage?: string

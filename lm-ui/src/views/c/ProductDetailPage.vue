@@ -34,7 +34,7 @@
             <div class="info-row">
               <span class="info-label">分享</span>
               <span class="info-value share-link" @click="onCopyLink">
-                {{ product.shareUrl }} <span class="copy-badge">复制</span>
+                {{ localShareUrl }} <span class="copy-badge">复制</span>
               </span>
             </div>
           </div>
@@ -55,6 +55,7 @@ import { useRoute } from 'vue-router'
 import { showToast } from '@/utils/toast'
 import { getProductById } from '@/api/product'
 import type { ProductDTO } from '@/types/product'
+import { toLocalShareUrl } from '@/utils/shareUrl'
 
 const route = useRoute()
 const productId = Number(route.params.id)
@@ -68,6 +69,8 @@ const imgStyle = computed(() => {
   return img ? { backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center' }
             : {}
 })
+
+const localShareUrl = computed(() => product.value ? toLocalShareUrl(product.value.shareUrl) : '')
 
 onMounted(async () => {
   try {
@@ -87,7 +90,7 @@ function onBuy() {
 async function onCopyLink() {
   if (!product.value) return
   try {
-    await navigator.clipboard.writeText(product.value.shareUrl)
+    await navigator.clipboard.writeText(localShareUrl.value)
     showToast('商品链接已复制', 'success')
   } catch {
     showToast('复制失败', 'error')
