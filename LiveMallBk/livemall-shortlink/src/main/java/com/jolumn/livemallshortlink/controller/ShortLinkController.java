@@ -1,6 +1,7 @@
 package com.jolumn.livemallshortlink.controller;
 
 import com.jolumn.livemallcommon.annotation.RequireAuth;
+import com.jolumn.livemallcommon.context.UserContext;
 import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.dto.Result;
 import com.jolumn.livemallcommon.exception.BizException;
@@ -91,9 +92,8 @@ public class ShortLinkController {
      */
     @PostMapping("/manage/create")
     @RequireAuth
-    public Result<Map<String, Object>> createManageLink(
-            @Valid @RequestBody CreateManageLinkRequest request,
-            @RequestHeader("X-User-Id") Long userId) {
+    public Result<Map<String, Object>> createManageLink(@Valid @RequestBody CreateManageLinkRequest request) {
+        Long userId = UserContext.currentUserId();
         ShortLinkVO vo = shortLinkService.createShortLink(userId, request.getProductId(), request.getOriginalUrl(), request.getTitle());
         return Result.ok(Map.of(
                 "id", vo.getId(),
@@ -109,8 +109,8 @@ public class ShortLinkController {
     @RequireAuth
     public Result<PageResult<ShortLinkVO>> list(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-User-Id") Long userId) {
+            @RequestParam(defaultValue = "20") int size) {
+        Long userId = UserContext.currentUserId();
         return Result.ok(shortLinkService.listByUser(userId, page, size));
     }
 
@@ -120,7 +120,7 @@ public class ShortLinkController {
      */
     @GetMapping("/manage/{id}")
     @RequireAuth
-    public Result<ShortLinkVO> detail(@PathVariable Long id, @RequestHeader("X-User-Id") Long userId) {
+    public Result<ShortLinkVO> detail(@PathVariable Long id) {
         return Result.ok(shortLinkService.findById(id));
     }
 
@@ -130,7 +130,8 @@ public class ShortLinkController {
      */
     @DeleteMapping("/manage/{id}")
     @RequireAuth
-    public Result<Void> delete(@PathVariable Long id, @RequestHeader("X-User-Id") Long userId) {
+    public Result<Void> delete(@PathVariable Long id) {
+        Long userId = UserContext.currentUserId();
         shortLinkService.softDelete(id, userId);
         return Result.ok();
     }
