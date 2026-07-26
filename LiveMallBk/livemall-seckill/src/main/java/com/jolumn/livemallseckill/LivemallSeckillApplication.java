@@ -31,6 +31,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemallseckill",
+        "com.jolumn.livemallcommon.filter",
         "com.jolumn.livemallcommon.interceptor",
         "com.jolumn.livemallcommon.util",
         "com.jolumn.livemallcommon.exception",

@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemallshortlink",
+        "com.jolumn.livemallcommon.filter",
         "com.jolumn.livemallcommon.interceptor",
         "com.jolumn.livemallcommon.util",
         "com.jolumn.livemallcommon.exception",

@@ -236,6 +236,31 @@ Integer role = ((Number) claims.get("role")).intValue();
 | 一人一单 | 否（可复购） | 是（per activity） |
 | 流程 | 同步落库 | Lua → Kafka → 异步落库 |
 
+## ScopedValue 用户上下文改造（2026-07-26）
+
+### UserContextFilter 注册问题
+
+`UserContextFilter` 在 `livemall-common/filter` 包中，实现 `jakarta.servlet.Filter` + `@Component`，自动绑定请求头 `X-User-Id`/`X-User-Role`/`X-Device-Id` 到 ScopedValue。
+
+**风险：`scanBasePackages` 遗漏子包**
+
+`LivemallUserApplication` 和 `LivemallWebsocketApplication` 用 `"com.jolumn.livemallcommon"`（全树扫描）✅；但 `LivemallShortlinkApplication`、`LivemallSeckillApplication`、`LivemallLeaderboardApplication` 精确列出了包名，**漏了 `.filter`** → Filter 不注册 → `UserContext.currentUserId()` 返回 null。
+
+**排查方法**：断点打在 Controller 中 `UserContext.currentUserId()`，如果返回 null 但 `X-User-Id` header 存在，优先检查该服务的 `@SpringBootApplication(scanBasePackages = ...)` 是否包含 `"com.jolumn.livemallcommon.filter"`。
+
+**Gateway 排除**：Gateway（WebFlux）不含 Servlet API，需在 `@ComponentScan.excludeFilters` 中显式排除 `UserContextFilter.class`。
+
+### 受影响的 Application 文件
+
+| 服务 | 状态 | 修复 |
+|------|------|------|
+| livemall-user | ✅ 正常 | `"com.jolumn.livemallcommon"` 全树扫描 |
+| livemall-websocket | ✅ 正常 | `"com.jolumn.livemallcommon"` 全树扫描 |
+| livemall-shortlink | ✅ 已修 | 加 `"com.jolumn.livemallcommon.filter"` |
+| livemall-seckill | ✅ 已修 | 加 `"com.jolumn.livemallcommon.filter"` |
+| livemall-leaderboard | ✅ 已修 | 加 `"com.jolumn.livemallcommon.filter"` |
+| livemall-gateway | ⏭️ 排除 | `excludeFilters` 加 `UserContextFilter.class` |
+
 ### 跨服务数据关联
 
 - 秒杀订单 `t_seckill_order` 中有 `product_id` 字段，通过 ID 关联商品

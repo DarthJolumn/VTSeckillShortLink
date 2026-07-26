@@ -10,11 +10,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.lang.ScopedValue;
 
 /**
  * 用户上下文过滤器
  * 解析请求头中的用户信息，绑定到 ScopedValue
+ * Gateway 通过 @ComponentScan.excludeFilters 排除
  */
 @Component
 public class UserContextFilter implements Filter {
@@ -32,15 +32,19 @@ public class UserContextFilter implements Filter {
 
         String deviceId = httpRequest.getHeader("X-Device-Id");
 
+        bindAndRun(userId, role, deviceId, () -> {
+            try {
+                chain.doFilter(request, response);
+            } catch (IOException | ServletException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    static void bindAndRun(Long userId, Integer role, String deviceId, Runnable action) {
         ScopedValue.where(UserContext.USER_ID, userId)
                    .where(UserContext.ROLE, role)
                    .where(UserContext.DEVICE_ID, deviceId)
-                   .run(() -> {
-                       try {
-                           chain.doFilter(request, response);
-                       } catch (IOException | ServletException e) {
-                           throw new RuntimeException(e);
-                       }
-                   });
+                   .run(action);
     }
 }

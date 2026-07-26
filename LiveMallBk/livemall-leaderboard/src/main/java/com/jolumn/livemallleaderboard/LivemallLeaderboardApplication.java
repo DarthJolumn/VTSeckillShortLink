@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = {
         "com.jolumn.livemallleaderboard",
+        "com.jolumn.livemallcommon.filter",
         "com.jolumn.livemallcommon.util",
         "com.jolumn.livemallcommon.exception",
         "com.jolumn.livemallcommon.dto"

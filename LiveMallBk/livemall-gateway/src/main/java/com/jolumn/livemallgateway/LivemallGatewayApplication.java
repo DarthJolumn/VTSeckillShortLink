@@ -3,6 +3,7 @@ package com.jolumn.livemallgateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import com.jolumn.livemallcommon.filter.UserContextFilter;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 
@@ -23,7 +24,7 @@ import org.springframework.context.annotation.FilterType;
         basePackages = {"com.jolumn.livemallcommon", "com.jolumn.livemallgateway"},
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
-                classes = com.jolumn.livemallcommon.exception.GlobalExceptionHandler.class
+                classes = { com.jolumn.livemallcommon.exception.GlobalExceptionHandler.class, UserContextFilter.class }
         )
 )
 public class LivemallGatewayApplication {
