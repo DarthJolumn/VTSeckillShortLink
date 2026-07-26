@@ -68,6 +68,12 @@ spring:
               predicates:
                 - Path=/ws/**
 
+            # ---------- 短链服务 ----------
+            - id: shortlink-service
+              uri: lb://livemall-shortlink
+              predicates:
+                - Path=/s/**
+
 # ====== 可观测性 ======
 management:
   endpoints:
@@ -96,4 +102,4 @@ gateway:
     # 完全公开路径（不验 JWT，逗号分隔）
     public-paths: ${GATEWAY_PUBLIC_PATHS:/auth/login,/auth/register,/auth/refresh,/ws/**,/actuator/health}
     # GET 公开路径（仅 GET 放行，其他 method 需 JWT）
-    public-get-paths: '${GATEWAY_PUBLIC_GET_PATHS:/live/rooms,/live/room/*,/leaderboard/**}'
+    public-get-paths: '${GATEWAY_PUBLIC_GET_PATHS:/live/rooms,/live/room/*,/leaderboard/**,/s/*}'
