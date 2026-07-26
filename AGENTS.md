@@ -122,7 +122,7 @@ Integer role = ((Number) claims.get("role")).intValue();
 | **限流** | Sentinel Dashboard 设规则 | 「Gateway 层 Sentinel 令牌桶限流，QPS 阈值+熔断降级」 |
 | **可观测性** | SkyWalking 链路追踪 | 「SkyWalking 定位跨服务慢调用，拓扑图分析依赖」 |
 | **GC 调优** | G1 → ZGC 对比压测 | 「同口径 450 并发，G1 GC 耗时 856ms → ZGC 3ms，P99 降 32%」 |
-| **瓶颈定位** | 阶梯加压 10→450 | 「300 并发 TPS 1408 为甜点，450 并发退化至 1298」 |
+| **瓶颈定位** | SkyWalking 定位 Kafka Producer 同步发送 | 「SW 追踪最长 3342ms，异步削峰后 300 并发 TPS 1513 / P99 92ms」 |
 | **高并发消费** | Semaphore 背压 + 手动 ACK | 「信号量耗尽阻塞 poll → Broker 降速，手动 ACK + 幂等去重 + 内存分级重试，100% 入库成功」 |
 | **分布式事务** | DB 先 → Redis 后 + 对账 | 「@Version CAS 防并发，ReconciliationScheduler 每 5 分钟补偿」 |
 | **多实例一致性** | 移除 BF + soldOutCache | 「活动量级小，Caffeine 精确判存；售罄由 Lua deduct 兜底」 |
