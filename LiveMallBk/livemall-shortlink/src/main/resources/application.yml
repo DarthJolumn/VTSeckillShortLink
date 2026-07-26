@@ -76,6 +76,19 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+# ====== Dubbo（消费 ProductShortLinkService） ======
+dubbo:
+  application:
+    name: livemall-shortlink
+  protocol:
+    name: dubbo
+    port: 20884
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
+  consumer:
+    check: false  # ProductShortLinkService provider 可能未启动时不阻塞
+    timeout: 3000
+
 # ====== 短链业务配置 ======
 shortlink:
   # 短码长度

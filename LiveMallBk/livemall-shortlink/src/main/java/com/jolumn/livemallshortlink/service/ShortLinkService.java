@@ -1,10 +1,13 @@
 package com.jolumn.livemallshortlink.service;
 
+import com.jolumn.livemallcommon.api.ProductShortLinkService;
+import com.jolumn.livemallcommon.codec.ShortCodeCodec;
 import com.jolumn.livemallcommon.dto.PageResult;
 import com.jolumn.livemallcommon.exception.BizException;
 import com.jolumn.livemallshortlink.dto.ShortLinkVO;
 import com.jolumn.livemallshortlink.entity.ShortLink;
 import com.jolumn.livemallshortlink.repository.ShortLinkRepository;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +32,9 @@ public class ShortLinkService {
     private final IdGenerator idGenerator;
     private final StatisticsService statisticsService;
     private final int defaultExpireDays;
+
+    @DubboReference
+    private ProductShortLinkService productShortLinkService;
 
     public ShortLinkService(ShortLinkRepository shortLinkRepository,
                             ShortLinkCache shortLinkCache,
@@ -97,33 +103,64 @@ public class ShortLinkService {
     }
 
     /**
-     * 获取原始 URL（跳转查询）
+     * 获取原始 URL（三级解析：Redis → DB → 算法）
+     * <p>
+     * 解析策略：
+     * 1. Redis 缓存命中：直接返回
+     * 2. DB 命中：处理活动/直播间等非算法派生短链
+     * 3. 算法推导：识别版本前缀 → 解码 productId → RPC 校验 → 回填缓存
      */
     public String getOriginalUrl(String shortCode) {
+        // Level 1: L1 本地缓存
         String url = shortLinkCache.getFromL1(shortCode);
         if (url != null) {
             statisticsService.recordClick(shortCode);
             return url;
         }
 
+        // Level 2: L2 Redis 缓存
         url = shortLinkCache.getFromL2(shortCode);
         if (url != null) {
             statisticsService.recordClick(shortCode);
             return url;
         }
 
-        ShortLink shortLink = shortLinkRepository.findByShortCode(shortCode)
-                .orElseThrow(() -> new BizException(404, "短链不存在"));
+        // Level 3a: DB 查询（非算法派生短链，如活动/直播间）
+        if (!ShortCodeCodec.isProductShortCode(shortCode)) {
+            ShortLink shortLink = shortLinkRepository.findByShortCode(shortCode)
+                    .orElseThrow(() -> new BizException(404, "短链不存在"));
 
-        Duration ttl = Duration.between(LocalDateTime.now(), shortLink.getExpireAt());
-        if (ttl.isNegative() || ttl.isZero()) {
-            throw new BizException(404, "短链已过期");
+            Duration ttl = Duration.between(LocalDateTime.now(), shortLink.getExpireAt());
+            if (ttl.isNegative() || ttl.isZero()) {
+                throw new BizException(404, "短链已过期");
+            }
+            shortLinkCache.put(shortCode, shortLink.getOriginalUrl(), ttl);
+            statisticsService.recordClick(shortCode);
+            return shortLink.getOriginalUrl();
         }
-        shortLinkCache.put(shortCode, shortLink.getOriginalUrl(), ttl);
 
-        statisticsService.recordClick(shortCode);
+        // Level 3b: 算法推导（商品短链）
+        try {
+            long productId = ShortCodeCodec.decode(shortCode);
+            log.debug("算法推导短码: shortCode={}, productId={}", shortCode, productId);
 
-        return shortLink.getOriginalUrl();
+            // RPC 校验商品状态并获取 URL
+            String productUrl = productShortLinkService.getAvailableProductUrl(productId);
+            if (productUrl == null) {
+                throw new BizException(404, "商品不可售或已下架");
+            }
+
+            // 异步回填缓存（商品短链默认 10 年有效期）
+            Duration ttl = Duration.ofDays(3650); // 10 年
+            shortLinkCache.put(shortCode, productUrl, ttl);
+
+            statisticsService.recordClick(shortCode);
+            log.info("算法推导成功: shortCode={}, productId={}", shortCode, productId);
+            return productUrl;
+        } catch (IllegalArgumentException e) {
+            log.warn("短码解码失败: shortCode={}", shortCode, e);
+            throw new BizException(400, "无效的短码格式");
+        }
     }
 
     /**

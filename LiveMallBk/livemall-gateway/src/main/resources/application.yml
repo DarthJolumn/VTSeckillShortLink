@@ -50,6 +50,12 @@ spring:
               predicates:
                 - Path=/seckill/**
 
+            # ---------- 商品服务 ----------
+            - id: product-service
+              uri: lb://livemall-seckill
+              predicates:
+                - Path=/product/**
+
             # ---------- 排行榜服务 ----------
             - id: leaderboard-service
               uri: lb://livemall-leaderboard
