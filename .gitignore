@@ -42,13 +42,15 @@ build/
 /nbdist/
 
 # node_modules
-/livemall-ui-vue/node_modules
 /vtsl-vue/node_modules
 /vtsl-vue/dist
 
 # Dev / local artifacts
 start-jmeter.bat
 dev.log
+
+# Old frontend
+/livemall-ui-vue
 
 # Personal (not for GitHub)
 /进度记录.md
