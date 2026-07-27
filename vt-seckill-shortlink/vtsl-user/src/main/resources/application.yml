@@ -1,0 +1,94 @@
+# ===================================================================
+# vtsl-user — 用户服务（Spring MVC + VT）
+# ===================================================================
+server:
+  port: 8081
+
+spring:
+  application:
+    name: vtsl-user
+
+  # ====== VT 开启（1.4 §1.2 约束） ======
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # ====== MyBatis Plus ======
+  mybatis-plus:
+    mapper-locations: classpath*:/mapper/**/*.xml
+    global-config:
+      db-config:
+        id-type: auto
+    configuration:
+      map-underscore-to-camel-case: true
+      log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+  # ====== Redis ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+
+# ====== Dubbo ======
+dubbo:
+  application:
+    name: vtsl-user
+  protocol:
+    name: dubbo
+    port: 20881
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
+  scan:
+    base-packages: com.jolumn.vtsluser.service
+  consumer:
+    check: false              # 启动不检查 provider，websocket 未就绪时 user 也能起
+
+# ====== JWT ======
+jwt:
+  secret: bGl2ZW1hbGwtZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTEyMzQ1Njc4OTA=
+
+# ====== workerId（Snowflake） ======
+worker:
+  id: ${WORKER_ID:1}
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+# ====== 日志 ======
+logging:
+  level:
+    com.jolumn.vtsluser: DEBUG
+    com.baomidou.mybatisplus: DEBUG

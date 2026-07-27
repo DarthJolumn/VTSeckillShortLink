@@ -1,0 +1,111 @@
+# ===================================================================
+# vtsl-gateway — WebFlux 网关服务
+# ===================================================================
+server:
+  port: 8080
+  netty:
+    max-connections: 16384
+    connection-timeout: 5000
+
+spring:
+  application:
+    name: vtsl-gateway
+
+  # ====== 强制 WebFlux 模式（1.4 §1.1：Gateway 唯一响应式服务） ======
+  # vtsl-common 引入了 spring-boot-starter-data-redis（非 reactive）会传递 spring-boot-starter-web，
+  # 必须强制 reactive，否则报错 "Spring MVC found on classpath, which is incompatible with Spring Cloud Gateway"
+  main:
+    web-application-type: reactive
+
+  # ====== Redis（Reactive — 非阻塞 Nonce 检查） ======
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+
+  # ====== Nacos 服务发现 ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:   # 公共命名空间
+        group: DEFAULT_GROUP
+
+    # ====== Gateway 路由（Spring Cloud Gateway 5.0 新路径：server.webflux.routes） ======
+    gateway:
+      server:
+        webflux:
+          routes:
+            # ---------- 用户服务 ----------
+            - id: user-service
+              uri: lb://vtsl-user
+              predicates:
+                - Path=/auth/**,/user/**
+
+            # ---------- 秒杀服务 ----------
+            - id: seckill-service
+              uri: lb://vtsl-seckill
+              predicates:
+                - Path=/seckill/**
+
+            # ---------- 商品服务 ----------
+            - id: product-service
+              uri: lb://vtsl-seckill
+              predicates:
+                - Path=/product/**
+
+            # ---------- 排行榜服务 ----------
+            - id: leaderboard-service
+              uri: lb://vtsl-leaderboard
+              predicates:
+                - Path=/leaderboard/**
+
+            # ---------- 直播间 REST 接口（开播/关播/房间信息） → websocket 服务 ----------
+            - id: live-service
+              uri: lb://vtsl-websocket
+              predicates:
+                - Path=/live/**
+
+            # ---------- WebSocket 长连接 ----------
+            - id: websocket-service
+              uri: lb:ws://vtsl-websocket
+              predicates:
+                - Path=/ws/**
+
+            # ---------- 短链服务 ----------
+            - id: shortlink-service
+              uri: lb://vtsl-shortlink
+              predicates:
+                - Path=/s/**
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1   # 10% 采样，高频不炸 Zipkin
+
+# ====== 日志 ======
+logging:
+  level:
+    com.jolumn.vtslgateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+
+# ====== JWT 配置 ======
+jwt:
+  secret: ${JWT_SECRET:bGl2ZW1hbGwtZGV2LXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTEyMzQ1Njc4OTA=}
+
+# ====== 签名验签配置 ======
+gateway:
+  sign:
+    app-secrets: ${SIGN_APP_SECRETS:livemall:livemall2026}  # appKey:secret 格式
+  auth:
+    # 完全公开路径（不验 JWT，逗号分隔）
+    public-paths: ${GATEWAY_PUBLIC_PATHS:/auth/login,/auth/register,/auth/refresh,/ws/**,/actuator/health}
+    # GET 公开路径（仅 GET 放行，其他 method 需 JWT）
+    public-get-paths: '${GATEWAY_PUBLIC_GET_PATHS:/live/rooms,/live/room/*,/leaderboard/**,/s/*}'

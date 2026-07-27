@@ -1,0 +1,122 @@
+# ===================================================================
+# vtsl-shortlink — 短链系统（端口 8091）
+# ===================================================================
+server:
+  port: 8084
+
+spring:
+  application:
+    name: vtsl-shortlink
+
+  # ====== 虚拟线程 ======
+  threads:
+    virtual:
+      enabled: true
+
+  # ====== JPA / MySQL ======
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  # ====== Redis（单主节点，跳转读只走 Master） ======
+  data:
+    redis:
+      host: 192.168.147.132
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+
+  # ====== Kafka（异步统计） ======
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 3
+      acks: all
+    consumer:
+      group-id: vtsl-shortlink-stats
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: manual
+      concurrency: 2
+
+  # ====== Nacos ======
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+    sentinel:
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
+
+  # ====== 优雅停机 ======
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+# ====== Dubbo（消费 ProductShortLinkService） ======
+dubbo:
+  application:
+    name: vtsl-shortlink
+  protocol:
+    name: dubbo
+    port: 20884
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
+  consumer:
+    check: false  # ProductShortLinkService provider 可能未启动时不阻塞
+    timeout: 3000
+
+# ====== 短链业务配置 ======
+shortlink:
+  # 短码长度
+  code-length: 6
+  # 短码字符集（Base62，剔除易混淆字符）
+  code-alphabet: 23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz
+  # 默认过期时间（天）
+  default-expire-days: 30
+  # Caffeine 本地缓存配置
+  cache:
+    max-size: 100000
+    ttl-seconds: 3
+  # 统计批量刷盘间隔（秒）
+  stats-flush-interval: 5
+  # 统计批量刷盘条数
+  stats-flush-size: 100
+
+# ====== 可观测性 ======
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.vtslshortlink: INFO
+    org.hibernate.SQL: INFO
