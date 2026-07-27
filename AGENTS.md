@@ -250,6 +250,46 @@ Integer role = ((Number) claims.get("role")).intValue();
 
 **Gateway 排除**：Gateway（WebFlux）不含 Servlet API，需在 `@ComponentScan.excludeFilters` 中显式排除 `UserContextFilter.class`。
 
+### ScopedValue 全链路流程
+
+```
+请求 → Gateway (WebFlux)
+         │
+         ├─ JwtAuthGlobalFilter (Order=-5)
+         │   ├─ 白名单路径 → 放行（不加 X-User-Id 头）
+         │   ├─ 签名通过 → 放行（不加 X-User-Id 头）
+         │   └─ JWT 验签 → 解析 subject/role → mutate header 注入
+         │                  X-User-Id, X-User-Role, X-Device-Id
+         │
+         └─ 路由转发 → lb://livemall-xxx (Nacos)
+                        │
+                        ▼
+        下游服务 (Tomcat, Servlet)
+                        │
+         ┌─ UserContextFilter.doFilter() ← @Component 自动注册
+         │    String uid = request.getHeader("X-User-Id")
+         │    ScopedValue.where(USER_ID, uid).run(chain::doFilter)
+         │                               ↓
+         │                    ┌──────────────────────┐
+         │                    │  整个请求生命周期内    │
+         │                    │  currentUserId() 可用 │
+         │                    └──────────────────────┘
+         │
+         ├─ AuthInterceptor.preHandle() ← 二次校验 X-User-Id
+         │   ├─ @PublicApi → 放行
+         │   ├─ @RequireAuth + userId==null → 401
+         │   └─ @RequireRole → 校验角色
+         │
+         └─ Controller → UserContext.currentUserId()
+                          (返回 Long，同一虚拟线程内始终有效)
+```
+
+**关键设计点**：
+- Gateway **不绑 ScopedValue**（WebFlux，无 Servlet API），只做 header 注入
+- ScopedValue 绑定发生在**下游 Servlet 服务**的 `UserContextFilter`
+- ScopedValue 生命周期 = `run()` 内整个请求链路（Filter → Interceptor → Controller → View）
+- 下游服务即使不使用 UserContext（如秒杀的 `@RequestHeader`），也不受影响
+
 ### 受影响的 Application 文件
 
 | 服务 | 状态 | 修复 |
