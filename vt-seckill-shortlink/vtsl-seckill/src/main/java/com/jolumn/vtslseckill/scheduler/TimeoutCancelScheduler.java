@@ -1,8 +1,11 @@
 package com.jolumn.vtslseckill.scheduler;
 
+import com.jolumn.vtslseckill.entity.SeckillActivity;
 import com.jolumn.vtslseckill.entity.SeckillOrder;
+import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
 import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
-import com.jolumn.vtslseckill.service.StockService;
+import com.jolumn.vtslseckill.strategy.SeckillStrategy;
+import com.jolumn.vtslseckill.strategy.SeckillStrategyFactory;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +23,8 @@ public class TimeoutCancelScheduler {
     private static final Logger log = LoggerFactory.getLogger(TimeoutCancelScheduler.class);
 
     private final SeckillOrderRepository orderRepo;
-    private final StockService stockService;
+    private final SeckillActivityRepository activityRepo;
+    private final SeckillStrategyFactory strategyFactory;
 
     @Value("${seckill.order-timeout-minutes:15}")
     private int timeoutMinutes;
@@ -31,9 +35,12 @@ public class TimeoutCancelScheduler {
     @Value("${seckill.timeout-scan-batch:500}")
     private int batchSize;
 
-    public TimeoutCancelScheduler(SeckillOrderRepository orderRepo, StockService stockService) {
+    public TimeoutCancelScheduler(SeckillOrderRepository orderRepo,
+                                  SeckillActivityRepository activityRepo,
+                                  SeckillStrategyFactory strategyFactory) {
         this.orderRepo = orderRepo;
-        this.stockService = stockService;
+        this.activityRepo = activityRepo;
+        this.strategyFactory = strategyFactory;
     }
 
     @Scheduled(fixedDelayString = "${seckill.timeout-scan-ms:15000}")
@@ -50,7 +57,11 @@ public class TimeoutCancelScheduler {
                     order.setCancelledAt(LocalDateTime.now());
                     orderRepo.save(order);
 
-                    stockService.refund(order.getActivityId(), order.getUserId());
+                    SeckillActivity activity = activityRepo.findById(order.getActivityId()).orElse(null);
+                    if (activity != null) {
+                        SeckillStrategy strategy = strategyFactory.getStrategy(activity.getMode());
+                        strategy.refundStock(order.getActivityId(), order.getUserId());
+                    }
                     log.info("超时取消订单成功: orderNo={}", order.getOrderNo());
                 } catch (OptimisticLockException e) {
                     log.info("订单已被用户主动取消: orderNo={}", order.getOrderNo());

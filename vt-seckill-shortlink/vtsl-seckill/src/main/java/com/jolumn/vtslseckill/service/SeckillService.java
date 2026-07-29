@@ -3,6 +3,9 @@ package com.jolumn.vtslseckill.service;
 import com.jolumn.vtslcommon.exception.BizException;
 import com.jolumn.vtslseckill.entity.SeckillActivity;
 import com.jolumn.vtslseckill.entity.SeckillOrder;
+import com.jolumn.vtslseckill.entity.enums.SeckillMode;
+import com.jolumn.vtslseckill.strategy.SeckillStrategy;
+import com.jolumn.vtslseckill.strategy.SeckillStrategyFactory;
 import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
 import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
 import org.slf4j.Logger;
@@ -22,21 +25,20 @@ public class SeckillService {
     private final SeckillOrderRepository orderRepo;
     private final StockService stockService;
     private final ActivityCacheService cacheService;
-    private final ActivityBloomFilter bloomFilter;
+    private final SeckillStrategyFactory seckillStrategyFactory;
 
     public SeckillService(SeckillActivityRepository activityRepo,
                           SeckillOrderRepository orderRepo,
                           StockService stockService,
                           ActivityCacheService cacheService,
-                          ActivityBloomFilter bloomFilter) {
+                          SeckillStrategyFactory factory) {
         this.activityRepo = activityRepo;
         this.orderRepo = orderRepo;
         this.stockService = stockService;
         this.cacheService = cacheService;
-        this.bloomFilter = bloomFilter;
+        this.seckillStrategyFactory = factory;
     }
 
-    /** 创建秒杀活动（管理员） */
     @Transactional
     public SeckillActivity createActivity(SeckillActivity activity) {
         if (activity.getStartTime().isAfter(activity.getEndTime())) {
@@ -48,13 +50,11 @@ public class SeckillService {
         return activityRepo.save(activity);
     }
 
-    /** 查询活动详情（走 DB — 管理端查询用） */
     public SeckillActivity getActivity(Long activityId) {
         return activityRepo.findById(activityId)
                 .orElseThrow(() -> new BizException(404, "活动不存在"));
     }
 
-    /** 查询活动详情（走 Caffeine 缓存 L1 — 下单降级路径用，避免直接穿透 DB） */
     public SeckillActivity getActivityCached(Long activityId) {
         SeckillActivity activity = cacheService.getActivity(activityId);
         if (activity == null) {
@@ -63,7 +63,6 @@ public class SeckillService {
         return activity;
     }
 
-    /** 更新活动状态（0:待开始 1:进行中 2:已结束 3:已取消）。上架(→1)时初始化 Redis 库存分片 */
     @Transactional
     public void updateStatus(Long activityId, Integer status) {
         SeckillActivity activity = activityRepo.findById(activityId)
@@ -74,16 +73,13 @@ public class SeckillService {
         activity.setStatus(status);
         activityRepo.save(activity);
 
-        if (status == 1) {
+        if (status == 1 && activity.getMode() != SeckillMode.DB_QUEUE) {
             stockService.initStock(activityId, activity.getTotalStock());
             cacheService.refresh(activityId);
-            // bloomFilter.add(activityId); — BF 多实例不一致，Caffeine 精确判存替代
         }
     }
 
-    /** 抢购下单。Caffeine L1 → Redis Lua → Kafka */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
-        // Caffeine L1 缓存活动信息
         SeckillActivity activity = cacheService.getActivity(activityId);
         if (activity == null) {
             throw new BizException(404, "活动不存在");
@@ -96,25 +92,37 @@ public class SeckillService {
             throw new BizException(400, "不在活动时间范围内");
         }
 
+        SeckillStrategy strategy = seckillStrategyFactory.getStrategy(activity.getMode());
+
         int result;
         try {
-            result = stockService.deduct(activityId, userId);
+            result = strategy.deductStock(activityId, userId);
         } catch (RuntimeException e) {
             throw new BizException(503, "系统繁忙，请稍后重试");
         }
-        return switch (result) {
-            case 200 -> {
-                log.info("抢购成功: activityId={}, userId={}, orderNo={}", activityId, userId, orderNo);
-                yield "ok";
+
+        if (result == 200) {
+            try {
+                strategy.createOrder(activity, userId, orderNo);
+                log.info("抢购成功: activityId={}, userId={}, orderNo={}, mode={}",
+                        activityId, userId, orderNo, activity.getMode());
+                return "ok";
+            } catch (Exception e) {
+                log.error("创建订单失败, 回补库存: activityId={}, userId={}, mode={}",
+                        activityId, userId, activity.getMode(), e);
+                strategy.refundStock(activityId, userId);
+                throw new BizException(503, "系统繁忙，请稍后重试");
             }
-            case -1 -> throw new BizException(1010, "已参与过该活动");
-            case -2 -> throw new BizException(1009, "库存不足");
-            case -3 -> throw new BizException(500, "活动未初始化");
-            default -> throw new BizException(500, "系统繁忙");
+        }
+
+        throw switch (result) {
+            case -1 -> new BizException(1010, "已参与过该活动");
+            case -2 -> new BizException(1009, "库存不足");
+            case -3 -> new BizException(500, "活动未初始化");
+            default -> new BizException(500, "系统繁忙");
         };
     }
 
-    /** 创建订单（Kafka Consumer 调用） */
     @Transactional
     public SeckillOrder createOrder(SeckillActivity activity, Long userId, String orderNo) {
         SeckillOrder order = new SeckillOrder();
@@ -127,18 +135,15 @@ public class SeckillService {
         return orderRepo.save(order);
     }
 
-    /** 查询用户订单列表 */
     public List<SeckillOrder> getUserOrders(Long userId) {
         return orderRepo.findByUserIdOrderByCreatedAtDesc(userId);
     }
 
-    /** 查询单个订单 */
     public SeckillOrder getOrder(String orderNo) {
         return orderRepo.findByOrderNo(orderNo)
                 .orElseThrow(() -> new BizException(404, "订单不存在"));
     }
 
-    /** 取消订单。先 DB 更新（@Version 防并发），后 Redis 回补（Lua EXISTS 幂等） */
     @Transactional
     public void cancelOrder(String orderNo, Long userId) {
         SeckillOrder order = orderRepo.findByOrderNo(orderNo)
@@ -153,10 +158,12 @@ public class SeckillService {
         order.setCancelledAt(LocalDateTime.now());
         orderRepo.save(order);
 
-        stockService.refund(order.getActivityId(), userId);
+        SeckillActivity activity = activityRepo.findById(order.getActivityId())
+                .orElseThrow(() -> new BizException(404, "活动不存在"));
+        SeckillStrategy strategy = seckillStrategyFactory.getStrategy(activity.getMode());
+        strategy.refundStock(order.getActivityId(), userId);
     }
 
-    /** 退款 */
     @Transactional
     public void refundOrder(String orderNo) {
         SeckillOrder order = orderRepo.findByOrderNo(orderNo)
@@ -168,7 +175,6 @@ public class SeckillService {
         orderRepo.save(order);
     }
 
-    /** 查询活动列表。传 roomId → 仅该房间进行中（C 端用），不传 → 全部（管理端用） */
     public List<SeckillActivity> getActivities(Long roomId) {
         if (roomId != null) {
             return activityRepo.findByRoomIdAndStatusOrderByStartTimeAsc(roomId, 1);
@@ -176,7 +182,6 @@ public class SeckillService {
         return activityRepo.findAllByOrderByStartTimeDesc();
     }
 
-    /** 查询进行中的活动 */
     public List<SeckillActivity> getActiveActivities() {
         return activityRepo.findByStatusOrderByStartTimeAsc(1);
     }

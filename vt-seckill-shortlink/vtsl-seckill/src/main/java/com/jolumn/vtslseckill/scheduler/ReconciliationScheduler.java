@@ -1,6 +1,9 @@
 package com.jolumn.vtslseckill.scheduler;
 
+import com.jolumn.vtslseckill.entity.SeckillActivity;
 import com.jolumn.vtslseckill.entity.SeckillOrder;
+import com.jolumn.vtslseckill.entity.enums.SeckillMode;
+import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
 import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,7 @@ public class ReconciliationScheduler {
     private static final int CANCELLED_STATUS = 2;
 
     private final SeckillOrderRepository orderRepo;
+    private final SeckillActivityRepository activityRepo;
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<Long> refundScript;
 
@@ -30,8 +34,11 @@ public class ReconciliationScheduler {
     @Value("${seckill.reconciliation-window-minutes:60}")
     private int reconciliationWindowMinutes;
 
-    public ReconciliationScheduler(SeckillOrderRepository orderRepo, StringRedisTemplate redisTemplate) {
+    public ReconciliationScheduler(SeckillOrderRepository orderRepo,
+                                   SeckillActivityRepository activityRepo,
+                                   StringRedisTemplate redisTemplate) {
         this.orderRepo = orderRepo;
+        this.activityRepo = activityRepo;
         this.redisTemplate = redisTemplate;
         this.refundScript = new DefaultRedisScript<>();
         this.refundScript.setLocation(new ClassPathResource("lua/refund_stock.lua"));
@@ -46,6 +53,11 @@ public class ReconciliationScheduler {
         int fixed = 0;
 
         for (SeckillOrder order : cancelledOrders) {
+            SeckillActivity activity = activityRepo.findById(order.getActivityId()).orElse(null);
+            if (activity == null || activity.getMode() == SeckillMode.DB_QUEUE) {
+                continue;
+            }
+
             String orderedKey = "ordered:{" + order.getActivityId() + "}:" + order.getUserId();
             Boolean exists = redisTemplate.hasKey(orderedKey);
             if (Boolean.TRUE.equals(exists)) {

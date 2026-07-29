@@ -1,5 +1,6 @@
 package com.jolumn.vtslseckill.entity;
 
+import com.jolumn.vtslseckill.entity.enums.SeckillMode;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,6 +18,15 @@ public class SeckillActivity {
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seckill_mode", nullable = false, length = 20)
+    private SeckillMode mode = SeckillMode.REDIS_ASYNC;
+
+    @Version
+    @Column(name = "version")
+    private Integer version;
+
 
     @Column(name = "seckill_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal seckillPrice;
@@ -78,4 +88,8 @@ public class SeckillActivity {
     public void setRoomId(Long roomId) { this.roomId = roomId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setMode(SeckillMode mode) {this.mode = mode;}
+    public SeckillMode getMode() {return mode;}
+    public Integer getVersion() { return version; }
+    public void setVersion(Integer version) { this.version = version; }
 }
