@@ -62,6 +62,13 @@
             <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
         </dependency>
 
+        <!-- ====== Sentinel Transport —— 连接 Dashboard ====== -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-transport-simple-http</artifactId>
+            <version>${sentinel.version}</version>
+        </dependency>
+
         <!-- ====== Sentinel Datasource —— SCG 自动配置依赖 Converter 接口 ====== -->
         <!-- spring-cloud-alibaba-sentinel-gateway 未传递依赖 sentinel-datasource-extension，
              而 SentinelSCGAutoConfiguration.sentinelGatewayBlockExceptionHandler

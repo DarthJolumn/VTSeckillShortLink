@@ -33,6 +33,11 @@ spring:
         namespace:   # 公共命名空间
         group: DEFAULT_GROUP
 
+    sentinel:
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
+
     # ====== Gateway 路由（Spring Cloud Gateway 5.0 新路径：server.webflux.routes） ======
     gateway:
       server:
