@@ -27,27 +27,13 @@ public class LiveWebSocket {
     private static JwtUtil jwtUtil;
     private static LeaderboardServiceClient leaderboardServiceClient;
     private static long maxSessions = 200_000;
+    private static int maxMessageSize = 64 * 1024;
 
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
-        String query = session.getQueryString();
-        String token = extractParamFromQuery(query, "token");
-        String deviceId = extractParamFromQuery(query, "deviceId");
+        String deviceId = extractParamFromQuery(session.getQueryString(), "deviceId");
         Long userId = null;
         Integer role = null;
-
-        if (token != null && !token.isBlank()) {
-            try {
-                Claims claims = jwtUtil.parse(token);
-                userId = Long.parseLong(claims.getSubject());
-                // JJWT + Gson 解析时数字会变成 Double，无法直接转 Integer，需通过 Number 中转
-                role = ((Number) claims.get("role")).intValue();
-            } catch (Exception e) {
-                log.warn("WS 握手验签失败，降级为匿名: {}", e.getMessage());
-                sendJson(session, Map.of("type", "AUTH_FAILED", "data",
-                        Map.of("reason", "Token 无效或已过期")));
-            }
-        }
 
         // 连接上限保护
         if (sessionManager.totalOnline() >= maxSessions) {
@@ -91,6 +77,11 @@ public class LiveWebSocket {
         }
 
         String type = (String) msg.get("type");
+
+        if (message.length() > maxMessageSize) {
+            sendJson(session, Map.of("type", "ERROR", "data", Map.of("reason", "消息体过大")));
+            return;
+        }
 
         if ("PING".equals(type)) {
             sendJson(session, Map.of("type", "PONG", "data", Map.of()));
@@ -260,6 +251,11 @@ public class LiveWebSocket {
     @org.springframework.beans.factory.annotation.Value("${ws.max-sessions:200000}")
     public void setMaxSessions(long maxSessions) {
         LiveWebSocket.maxSessions = maxSessions;
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${ws.max-message-size:65536}")
+    public void setMaxMessageSize(int maxMessageSize) {
+        LiveWebSocket.maxMessageSize = maxMessageSize;
     }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
