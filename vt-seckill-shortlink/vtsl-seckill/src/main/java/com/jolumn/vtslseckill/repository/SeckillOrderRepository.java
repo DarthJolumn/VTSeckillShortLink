@@ -19,4 +19,6 @@ public interface SeckillOrderRepository extends JpaRepository<SeckillOrder, Long
     List<SeckillOrder> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(Integer status, LocalDateTime time, Pageable pageable);
 
     List<SeckillOrder> findByStatusAndCancelledAtAfter(Integer status, LocalDateTime time);
+
+    List<SeckillOrder> findByStatusAndCancelledAtAfter(Integer status, LocalDateTime time, Pageable pageable);
 }

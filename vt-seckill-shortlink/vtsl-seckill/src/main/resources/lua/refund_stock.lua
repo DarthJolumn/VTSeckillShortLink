@@ -1,9 +1,11 @@
 -- 回补库存（幂等：ordered key 存在才 INCR，防并发重复回补）
 -- KEYS[1] = stock:{activityId}
 -- KEYS[2] = ordered:{activityId}:{userId}
+-- 返回 1 表示已补偿，0 表示无需补偿（orderedKey 不存在）
 
 if redis.call("EXISTS", KEYS[2]) == 1 then
     redis.call("INCR", KEYS[1])
     redis.call("DEL", KEYS[2])
+    return 1
 end
-return 1
+return 0
