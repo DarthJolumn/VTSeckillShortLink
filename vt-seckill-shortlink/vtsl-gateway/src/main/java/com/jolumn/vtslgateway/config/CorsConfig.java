@@ -13,7 +13,7 @@ public class CorsConfig {
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
-        config.addAllowedOriginPattern("*"); // 开发环境允许任意 origin
+        config.addAllowedOriginPattern("${gateway.cors.allowed-origins:http://localhost:3000,http://localhost:8080}");
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
 
