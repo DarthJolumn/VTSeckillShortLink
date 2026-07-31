@@ -18,10 +18,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
@@ -32,19 +29,15 @@ public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
 
     private final ReactiveStringRedisTemplate redisTemplate;
 
-    // AppKey -> Secret 映射（简化实现，生产环境应放 Redis 或配置中心）
-    private final Map<String, String> appSecrets = new ConcurrentHashMap<>();
-
     public SignVerifyGlobalFilter(
             ReactiveStringRedisTemplate redisTemplate,
             @Value("${gateway.sign.app-secrets:}") String appSecretsConfig) {
         this.redisTemplate = redisTemplate;
-        // 解析配置：appKey1:secret1,appKey2:secret2
         if (appSecretsConfig != null && !appSecretsConfig.isBlank()) {
             for (String pair : appSecretsConfig.split(",")) {
                 String[] kv = pair.split(":");
                 if (kv.length == 2) {
-                    appSecrets.put(kv[0].trim(), kv[1].trim());
+                    HmacUtil.setSecret(kv[0].trim(), kv[1].trim());
                 }
             }
         }
@@ -57,12 +50,10 @@ public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
         String nonce = headers.getFirst("X-Nonce");
         String sign = headers.getFirst("X-Sign");
 
-        // 没有签名 header，直接放行（让 JwtAuthGlobalFilter 处理）
         if (timestamp == null || nonce == null || sign == null) {
             return chain.filter(exchange);
         }
 
-        // 1. 时间窗口校验
         try {
             long ts = Long.parseLong(timestamp);
             if (Math.abs(System.currentTimeMillis() - ts) > TIME_WINDOW) {
@@ -72,7 +63,6 @@ public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange, "Invalid timestamp");
         }
 
-        // 2. Nonce 防重放（ReactiveRedisTemplate 非阻塞）
         String nonceKey = "nonce:" + nonce;
         return redisTemplate.opsForValue()
                 .setIfAbsent(nonceKey, "1", Duration.ofSeconds(60))
@@ -81,24 +71,16 @@ public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
                         return unauthorized(exchange, "Nonce reused");
                     }
 
-                    // 3. 签名校验
                     String appKey = headers.getFirst("X-AppKey");
                     if (appKey == null) {
                         return unauthorized(exchange, "Missing X-AppKey");
                     }
 
-                    String secret = appSecrets.get(appKey);
-                    if (secret == null) {
-                        return unauthorized(exchange, "Unknown AppKey");
-                    }
-
-                    String expectedSign = HmacUtil.sha256(timestamp + nonce, secret);
-                    if (!MessageDigest.isEqual(expectedSign.getBytes(StandardCharsets.UTF_8), sign.getBytes(StandardCharsets.UTF_8))) {
-                        log.warn("签名校验失败: expected={}, actual={}", expectedSign, sign);
+                    if (!HmacUtil.verify(timestamp + nonce, appKey, sign)) {
+                        log.warn("签名校验失败: appKey={}", appKey);
                         return unauthorized(exchange, "Invalid signature");
                     }
 
-                    // 签名通过，标记跳过 JWT
                     exchange.getAttributes().put(SIGN_PASSED_ATTR, true);
                     return chain.filter(exchange);
                 });
