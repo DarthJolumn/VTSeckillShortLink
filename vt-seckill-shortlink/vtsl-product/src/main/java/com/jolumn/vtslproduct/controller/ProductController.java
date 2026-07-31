@@ -1,13 +1,13 @@
-package com.jolumn.vtslseckill.product.controller;
+package com.jolumn.vtslproduct.controller;
 
 import com.jolumn.vtslcommon.annotation.RequireAuth;
 import com.jolumn.vtslcommon.context.UserContext;
 import com.jolumn.vtslcommon.dto.PageResult;
 import com.jolumn.vtslcommon.dto.Result;
-import com.jolumn.vtslseckill.product.dto.ProductDTO;
-import com.jolumn.vtslseckill.product.dto.ProductPublishCmd;
-import com.jolumn.vtslseckill.product.dto.ProductUpdateCmd;
-import com.jolumn.vtslseckill.product.service.ProductFacade;
+import com.jolumn.vtslproduct.dto.ProductDTO;
+import com.jolumn.vtslproduct.dto.ProductPublishCmd;
+import com.jolumn.vtslproduct.dto.ProductUpdateCmd;
+import com.jolumn.vtslproduct.service.ProductFacade;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +27,11 @@ public class ProductController {
         this.productFacade = productFacade;
     }
 
-    @PostMapping("/publish")
+    @PostMapping
     @RequireAuth
     public Result<Long> publish(@Valid @RequestBody ProductPublishCmd cmd) {
         Long userId = UserContext.currentUserId();
-        cmd.setUserId(userId);
-        Long productId = productFacade.publish(cmd);
+        Long productId = productFacade.publish(userId, cmd);
         log.info("商家发布商品: userId={}, productId={}", userId, productId);
         return Result.ok(productId);
     }

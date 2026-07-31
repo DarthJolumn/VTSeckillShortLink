@@ -1,15 +1,27 @@
-package com.jolumn.vtslseckill.product.dto;
+package com.jolumn.vtslproduct.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
-public class ProductUpdateCmd {
+public class ProductPublishCmd {
 
+    @NotBlank(message = "商品标题不能为空")
     private String title;
+
     private String subtitle;
     private String mainImage;
     private String detailImages;
+
+    @NotNull(message = "价格不能为空")
+    @Positive(message = "价格必须大于 0")
     private BigDecimal price;
+
+    @NotNull(message = "库存不能为空")
     private Integer stock;
+
     private Long categoryId;
 
     public String getTitle() { return title; }

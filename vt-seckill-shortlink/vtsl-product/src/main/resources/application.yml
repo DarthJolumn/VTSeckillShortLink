@@ -1,0 +1,83 @@
+server:
+  port: 8093
+
+spring:
+  application:
+    name: vtsl-product
+
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall_product_1?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 123456
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 15
+          max-idle: 10
+          min-idle: 5
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+    sentinel:
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+product:
+  share-url-base: ${SHARE_URL_BASE:https://s.livemall.com}
+  cache:
+    ttl-seconds: 5
+    max-size: 2000
+
+dubbo:
+  application:
+    name: vtsl-product
+  protocol:
+    name: dubbo
+    port: 20885
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
+  consumer:
+    check: false
+    timeout: 3000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.vtslproduct: INFO
+    org.hibernate.SQL: INFO

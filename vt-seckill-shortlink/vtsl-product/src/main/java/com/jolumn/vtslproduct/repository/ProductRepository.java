@@ -1,9 +1,10 @@
-package com.jolumn.vtslseckill.product.repository;
+package com.jolumn.vtslproduct.repository;
 
-import com.jolumn.vtslseckill.product.entity.Product;
+import com.jolumn.vtslproduct.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,4 +29,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT p FROM Product p WHERE p.userId = :userId AND p.status = :status AND p.isDeleted = 0")
     Page<Product> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") Integer status, Pageable pageable);
+
+    @Modifying
+    @Query(value = "UPDATE t_product_0 SET stock = stock - :quantity WHERE id = :id AND stock >= :quantity AND is_deleted = 0",
+           nativeQuery = true)
+    int decrementStock(@Param("id") Long id, @Param("quantity") int quantity);
+
+    @Modifying
+    @Query(value = "UPDATE t_product_0 SET stock = stock + :quantity WHERE id = :id AND is_deleted = 0",
+           nativeQuery = true)
+    void incrementStock(@Param("id") Long id, @Param("quantity") int quantity);
 }

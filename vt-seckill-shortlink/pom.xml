@@ -107,6 +107,7 @@
         <module>vtsl-common</module>
         <module>vtsl-user</module>
         <module>vtsl-seckill</module>
+        <module>vtsl-product</module>
         <module>vtsl-shortlink</module>
         <module>vtsl-websocket</module>
         <module>vtsl-leaderboard</module>

@@ -1,13 +1,13 @@
-package com.jolumn.vtslseckill.product.service;
+package com.jolumn.vtslproduct.service;
 
 import com.jolumn.vtslcommon.dto.PageResult;
-import com.jolumn.vtslseckill.product.dto.ProductDTO;
-import com.jolumn.vtslseckill.product.dto.ProductPublishCmd;
-import com.jolumn.vtslseckill.product.dto.ProductUpdateCmd;
+import com.jolumn.vtslproduct.dto.ProductDTO;
+import com.jolumn.vtslproduct.dto.ProductPublishCmd;
+import com.jolumn.vtslproduct.dto.ProductUpdateCmd;
 
 public interface ProductFacade {
 
-    Long publish(ProductPublishCmd cmd);
+    Long publish(Long userId, ProductPublishCmd cmd);
 
     ProductDTO getById(Long productId);
 

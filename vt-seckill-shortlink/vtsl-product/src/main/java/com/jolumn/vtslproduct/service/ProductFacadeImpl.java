@@ -1,21 +1,22 @@
-package com.jolumn.vtslseckill.product.service;
+package com.jolumn.vtslproduct.service;
 
 import com.jolumn.vtslcommon.codec.ShortCodeCodec;
 import com.jolumn.vtslcommon.dto.PageResult;
 import com.jolumn.vtslcommon.exception.BizException;
 import com.jolumn.vtslcommon.util.SnowflakeIdGenerator;
-import com.jolumn.vtslseckill.product.dto.ProductDTO;
-import com.jolumn.vtslseckill.product.dto.ProductPublishCmd;
-import com.jolumn.vtslseckill.product.dto.ProductUpdateCmd;
-import com.jolumn.vtslseckill.product.entity.Product;
-import com.jolumn.vtslseckill.product.repository.ProductRepository;
+import com.jolumn.vtslproduct.cache.ProductCacheService;
+import com.jolumn.vtslproduct.dto.ProductDTO;
+import com.jolumn.vtslproduct.dto.ProductPublishCmd;
+import com.jolumn.vtslproduct.dto.ProductUpdateCmd;
+import com.jolumn.vtslproduct.entity.Product;
+import com.jolumn.vtslproduct.repository.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,22 +24,24 @@ import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 @Service
-public class ProductServiceImpl implements ProductFacade {
+public class ProductFacadeImpl implements ProductFacade {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(ProductFacadeImpl.class);
     private static final String DEDUP_PREFIX = "product:dedup:";
-    private static final String STOCK_PREFIX = "product:stock:";
 
     private final ProductRepository productRepository;
+    private final ProductCacheService cacheService;
     private final StringRedisTemplate redisTemplate;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
     private final String shareUrlBase;
 
-    public ProductServiceImpl(ProductRepository productRepository,
-                              StringRedisTemplate redisTemplate,
-                              SnowflakeIdGenerator snowflakeIdGenerator,
-                              @Value("${product.share-url-base:https://s.livemall.com}") String shareUrlBase) {
+    public ProductFacadeImpl(ProductRepository productRepository,
+                             ProductCacheService cacheService,
+                             StringRedisTemplate redisTemplate,
+                             SnowflakeIdGenerator snowflakeIdGenerator,
+                             @Value("${product.share-url-base:https://s.livemall.com}") String shareUrlBase) {
         this.productRepository = productRepository;
+        this.cacheService = cacheService;
         this.redisTemplate = redisTemplate;
         this.snowflakeIdGenerator = snowflakeIdGenerator;
         this.shareUrlBase = shareUrlBase;
@@ -46,15 +49,16 @@ public class ProductServiceImpl implements ProductFacade {
 
     @Override
     @Transactional
-    public Long publish(ProductPublishCmd cmd) {
-        String dedupKey = DEDUP_PREFIX + cmd.getUserId() + ":" + md5(cmd.getTitle());
+    public Long publish(Long userId, ProductPublishCmd cmd) {
+        String dedupKey = DEDUP_PREFIX + userId + ":" + md5(cmd.getTitle());
         Boolean isNew = redisTemplate.opsForValue().setIfAbsent(dedupKey, "1", 24, TimeUnit.HOURS);
         if (Boolean.FALSE.equals(isNew)) {
             throw new BizException(400, "24h 内已发布同名商品");
         }
 
         Product product = new Product();
-        product.setUserId(cmd.getUserId());
+        product.setId(snowflakeIdGenerator.nextId());
+        product.setUserId(userId);
         product.setTitle(cmd.getTitle());
         product.setSubtitle(cmd.getSubtitle());
         product.setMainImage(cmd.getMainImage());
@@ -63,55 +67,44 @@ public class ProductServiceImpl implements ProductFacade {
         product.setStock(cmd.getStock());
         product.setStatus(1);
         product.setCategoryId(cmd.getCategoryId());
-        product.setId(snowflakeIdGenerator.nextId());
         product.setIsDeleted(0);
         product.setCreatedAt(LocalDateTime.now());
         product.setUpdatedAt(LocalDateTime.now());
 
-        // 3. 保存（V1 单表手动设雪花 ID，后续 ShardingSphere 接管后移除 setter）
         productRepository.save(product);
+        cacheService.put(product.getId(), product);
 
-        String stockKey = STOCK_PREFIX + product.getId();
-        redisTemplate.opsForValue().set(stockKey, String.valueOf(cmd.getStock()));
-
-        log.info("商品发布成功: productId={}, userId={}, title={}", product.getId(), cmd.getUserId(), cmd.getTitle());
+        log.info("商品发布成功: productId={}, userId={}, title={}", product.getId(), userId, cmd.getTitle());
         return product.getId();
     }
 
     @Override
     public ProductDTO getById(Long productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new BizException(404, "商品不存在"));
+        Product product = cacheService.getProduct(productId);
+        if (product == null || product.getIsDeleted() != 0) {
+            throw new BizException(404, "商品不存在");
+        }
         return toDTO(product);
     }
 
     @Override
     @Transactional
     public boolean checkAndDecrStock(Long productId, int quantity) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new BizException(404, "商品不存在"));
-
-        if (product.getStatus() != 1 || product.getIsDeleted() != 0) {
-            throw new BizException(400, "商品不可售");
+        int updated = productRepository.decrementStock(productId, quantity);
+        if (updated > 0) {
+            cacheService.refresh(productId);
+            log.info("库存扣减成功: productId={}, quantity={}", productId, quantity);
+            return true;
         }
-
-        if (product.getStock() < quantity) {
-            return false;
-        }
-
-        product.setStock(product.getStock() - quantity);
-        product.setUpdatedAt(LocalDateTime.now());
-        productRepository.save(product);
-
-        String stockKey = STOCK_PREFIX + productId;
-        redisTemplate.opsForValue().set(stockKey, String.valueOf(product.getStock()));
-
-        log.info("库存扣减成功: productId={}, quantity={}, remain={}", productId, quantity, product.getStock());
-        return true;
+        return false;
     }
 
     @Override
     public boolean checkAvailable(Long productId) {
+        Product product = cacheService.getProduct(productId);
+        if (product != null && product.getIsDeleted() == 0 && product.getStatus() == 1 && product.getStock() > 0) {
+            return true;
+        }
         return productRepository.findAvailableById(productId).isPresent();
     }
 
@@ -157,15 +150,12 @@ public class ProductServiceImpl implements ProductFacade {
         if (cmd.getMainImage() != null) product.setMainImage(cmd.getMainImage());
         if (cmd.getDetailImages() != null) product.setDetailImages(cmd.getDetailImages());
         if (cmd.getPrice() != null) product.setPrice(cmd.getPrice());
-        if (cmd.getStock() != null) {
-            product.setStock(cmd.getStock());
-            String stockKey = STOCK_PREFIX + id;
-            redisTemplate.opsForValue().set(stockKey, String.valueOf(cmd.getStock()));
-        }
+        if (cmd.getStock() != null) product.setStock(cmd.getStock());
         if (cmd.getCategoryId() != null) product.setCategoryId(cmd.getCategoryId());
 
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
+        cacheService.evict(id);
         log.info("商品更新成功: productId={}, userId={}", id, userId);
     }
 
@@ -180,6 +170,7 @@ public class ProductServiceImpl implements ProductFacade {
         product.setStatus(status);
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
+        cacheService.evict(id);
         log.info("商品状态更新: productId={}, userId={}, status={}", id, userId, status);
     }
 
@@ -194,6 +185,7 @@ public class ProductServiceImpl implements ProductFacade {
         product.setIsDeleted(1);
         product.setUpdatedAt(LocalDateTime.now());
         productRepository.save(product);
+        cacheService.evict(id);
         log.info("商品已删除: productId={}, userId={}", id, userId);
     }
 
