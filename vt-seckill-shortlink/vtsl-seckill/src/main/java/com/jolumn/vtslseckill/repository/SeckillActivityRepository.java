@@ -22,12 +22,12 @@ public interface SeckillActivityRepository extends JpaRepository<SeckillActivity
     List<Long> findActiveIds();
 
     @Modifying
-    @Query(value = "UPDATE t_seckill_activity SET total_stock = total_stock - 1 WHERE id = :activityId AND total_stock > 0",
+    @Query(value = "UPDATE t_seckill_activity SET total_stock = total_stock - 1, version = version + 1 WHERE id = :activityId AND total_stock > 0 AND version = :version",
            nativeQuery = true)
-    int decrementStockIfAvailable(@Param("activityId") Long activityId);
+    int decrementStockIfAvailable(@Param("activityId") Long activityId, @Param("version") int version);
 
     @Modifying
-    @Query(value = "UPDATE t_seckill_activity SET total_stock = total_stock + 1 WHERE id = :activityId",
+    @Query(value = "UPDATE t_seckill_activity SET total_stock = total_stock + 1, version = version + 1 WHERE id = :activityId",
            nativeQuery = true)
     void incrementStockIfAvailable(@Param("activityId") Long activityId);
 }
