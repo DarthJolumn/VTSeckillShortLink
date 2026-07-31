@@ -18,6 +18,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,7 +93,7 @@ public class SignVerifyGlobalFilter implements GlobalFilter, Ordered {
                     }
 
                     String expectedSign = HmacUtil.sha256(timestamp + nonce, secret);
-                    if (!expectedSign.equals(sign)) {
+                    if (!MessageDigest.isEqual(expectedSign.getBytes(StandardCharsets.UTF_8), sign.getBytes(StandardCharsets.UTF_8))) {
                         log.warn("签名校验失败: expected={}, actual={}", expectedSign, sign);
                         return unauthorized(exchange, "Invalid signature");
                     }
