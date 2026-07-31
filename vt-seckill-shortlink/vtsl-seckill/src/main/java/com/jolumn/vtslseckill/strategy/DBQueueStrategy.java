@@ -25,7 +25,9 @@ public class DBQueueStrategy implements SeckillStrategy {
     @Transactional
     @Override
     public int deductStock(Long activityId, Long userId) {
-        int updated = activityRepo.decrementStockIfAvailable(activityId);
+        SeckillActivity activity = activityRepo.findById(activityId).orElse(null);
+        if (activity == null) return -3;
+        int updated = activityRepo.decrementStockIfAvailable(activityId, activity.getVersion());
         if (updated > 0) {
             log.info("DBQueue 乐观锁扣减成功: activityId={}", activityId);
             return 200;
