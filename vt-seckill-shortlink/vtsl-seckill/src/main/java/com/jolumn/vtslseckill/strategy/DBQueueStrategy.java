@@ -36,7 +36,7 @@ public class DBQueueStrategy implements SeckillStrategy {
     @Override
     public void createOrder(SeckillActivity activity, Long userId, String orderNo) {
         String msg = userId + ":" + activity.getId() + ":" + orderNo;
-        kafkaTemplate.send("seckill-order-queue", activity.getId().toString(), msg);
+        kafkaTemplate.send("seckill-order", activity.getId().toString(), msg);
         log.info("DBQueue 发送顺序 MQ 消息: key={}, msg={}", activity.getId(), msg);
     }
 
