@@ -31,22 +31,3 @@ build/
 
 ### VS Code ###
 .vscode/
-
-### Docker ###
-docker/volumes/
-
-### Logs ###
-logs/
-*.log
-
-### OS ###
-.DS_Store
-Thumbs.db
-
-### IDE / Tools ###
-.idea/
-*.iml
-.opencode/
-.claude/
-.codebuddy/
-/docs
