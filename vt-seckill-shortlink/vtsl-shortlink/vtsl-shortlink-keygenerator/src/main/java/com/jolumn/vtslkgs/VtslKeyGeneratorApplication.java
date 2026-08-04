@@ -1,11 +1,11 @@
-package com.jolumn.vtslshortlinkapi;
+package com.jolumn.vtslkgs;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class VtslShortlinkApiApplication {
+public class VtslKeyGeneratorApplication {
     public static void main(String[] args) {
-        SpringApplication.run(VtslShortlinkApiApplication.class, args);
+        SpringApplication.run(VtslKeyGeneratorApplication.class, args);
     }
 }

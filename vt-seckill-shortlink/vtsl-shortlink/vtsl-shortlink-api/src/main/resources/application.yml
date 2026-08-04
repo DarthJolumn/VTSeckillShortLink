@@ -1,0 +1,83 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: vtsl-shortlink-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.147.132}:3306/livemall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      retries: 3
+      acks: all
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+    sentinel:
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:192.168.147.132:8858}
+
+dubbo:
+  application:
+    name: vtsl-shortlink-api
+  protocol:
+    name: dubbo
+    port: 20885
+  registry:
+    address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
+  consumer:
+    check: false
+    timeout: 3000
+
+shortly:
+  kgs:
+    grpc-address: ${KGS_GRPC_ADDRESS:localhost:50051}
+  jwt:
+    secret: ${JWT_SECRET:change-me-please-at-least-32-bytes}
+    expiration-hours: 24
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 0.1
+
+logging:
+  level:
+    com.jolumn.vtslshortlinkapi: INFO
+    org.hibernate.SQL: INFO

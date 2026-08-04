@@ -1,0 +1,44 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: vtsl-shortlink-keygenerator
+  threads:
+    virtual:
+      enabled: true
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_HOST:192.168.147.132}:27017
+      database: shortly
+    redis:
+      host: ${REDIS_HOST:192.168.147.132}
+      port: 6379
+      password: redis123
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:192.168.147.132:8848}
+        namespace:
+        group: DEFAULT_GROUP
+
+shortly:
+  kgs:
+    grpc-port: ${KGS_GRPC_PORT:50051}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    com.jolumn.vtslkgs: INFO
