@@ -8,6 +8,7 @@ import com.jolumn.vtslcommon.exception.BizException;
 import com.jolumn.vtslshortlinkapi.dto.request.CreateUrlRequest;
 import com.jolumn.vtslshortlinkapi.dto.request.UpdateUrlRequest;
 import com.jolumn.vtslshortlinkapi.dto.response.*;
+import com.jolumn.vtslshortlinkapi.ratelimit.RateLimit;
 import com.jolumn.vtslshortlinkapi.service.AnalyticsService;
 import com.jolumn.vtslshortlinkapi.service.UrlService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,6 +31,7 @@ public class UrlController {
 
     @PostMapping("/url/shorten")
     @RequireAuth
+    @RateLimit(limit = 5, windowSeconds = 60)
     public Result<CreateUrlResponse> create(@Valid @RequestBody CreateUrlRequest request) {
         Long userId = requireUserId();
         return Result.ok(urlService.create(userId, request));
@@ -37,6 +39,7 @@ public class UrlController {
 
     @GetMapping("/url/")
     @RequireAuth
+    @RateLimit(limit = 20, windowSeconds = 60)
     public Result<List<UrlDetailResponse>> list() {
         Long userId = requireUserId();
         return Result.ok(urlService.listMine(userId));
@@ -44,6 +47,7 @@ public class UrlController {
 
     @GetMapping("/url/{shortKey}")
     @RequireAuth
+    @RateLimit(limit = 20, windowSeconds = 60)
     public Result<UrlDetailResponse> details(@PathVariable String shortKey) {
         Long userId = requireUserId();
         return Result.ok(urlService.details(userId, shortKey));
@@ -51,6 +55,7 @@ public class UrlController {
 
     @PatchMapping("/url/{shortKey}")
     @RequireAuth
+    @RateLimit(limit = 5, windowSeconds = 60)
     public Result<UrlUpdateResponse> update(@PathVariable String shortKey,
                                             @Valid @RequestBody UpdateUrlRequest request) {
         Long userId = requireUserId();
@@ -59,6 +64,7 @@ public class UrlController {
 
     @DeleteMapping("/url/{shortKey}")
     @RequireAuth
+    @RateLimit(limit = 5, windowSeconds = 60)
     public Result<Void> delete(@PathVariable String shortKey) {
         Long userId = requireUserId();
         urlService.delete(userId, shortKey);
@@ -67,6 +73,7 @@ public class UrlController {
 
     @GetMapping("/url/redirect/{shortKey}")
     @PublicApi
+    @RateLimit(limit = 50, windowSeconds = 60)
     public Result<String> redirect(@PathVariable String shortKey, HttpServletRequest request) {
         String clientIp = getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
@@ -77,6 +84,7 @@ public class UrlController {
 
     @GetMapping("/analytics/{urlId}")
     @RequireAuth
+    @RateLimit(limit = 10, windowSeconds = 60)
     public Result<List<AnalyticsItem>> analytics(@PathVariable String urlId) {
         Long userId = requireUserId();
         return Result.ok(analyticsService.getAnalytics(userId, urlId));

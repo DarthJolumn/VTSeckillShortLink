@@ -39,9 +39,9 @@ public class UserAgentParser {
     private String detectOs(String ua) {
         if (ua.contains("Windows NT 10")) return "Windows";
         if (ua.contains("Windows")) return "Windows";
-        if (ua.contains("Mac OS X")) return "Mac OS X";
+        if (ua.contains("iPhone") || ua.contains("iPad") || ua.contains("iPod")) return "iOS";
         if (ua.contains("Android")) return "Android";
-        if (ua.contains("iPhone") || ua.contains("iPad")) return "iOS";
+        if (ua.contains("Mac OS X")) return "Mac OS X";
         if (ua.contains("Linux")) return "Linux";
         return "";
     }

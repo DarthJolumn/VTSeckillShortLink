@@ -79,11 +79,17 @@ spring:
               predicates:
                 - Path=/ws/**
 
-            # ---------- 短链服务 ----------
+            # ---------- 短链服务（旧版 simple） ----------
             - id: shortlink-service
               uri: lb://vtsl-shortlink
               predicates:
                 - Path=/s/**
+
+            # ---------- 短链 API 服务（新版） ----------
+            - id: shortlink-api-service
+              uri: lb://vtsl-shortlink-api
+              predicates:
+                - Path=/api/v1/**
 
 # ====== 可观测性 ======
 management:
@@ -111,6 +117,6 @@ gateway:
     app-secrets: ${SIGN_APP_SECRETS:livemall:livemall2026}  # appKey:secret 格式
   auth:
     # 完全公开路径（不验 JWT，逗号分隔）
-    public-paths: ${GATEWAY_PUBLIC_PATHS:/auth/login,/auth/register,/auth/refresh,/ws/**,/actuator/health}
+    public-paths: ${GATEWAY_PUBLIC_PATHS:/auth/login,/auth/register,/auth/refresh,/ws/**,/actuator/health,/api/v1/health}
     # GET 公开路径（仅 GET 放行，其他 method 需 JWT）
-    public-get-paths: '${GATEWAY_PUBLIC_GET_PATHS:/live/rooms,/live/room/*,/leaderboard/**,/s/*}'
+    public-get-paths: '${GATEWAY_PUBLIC_GET_PATHS:/live/rooms,/live/room/*,/leaderboard/**,/s/*,/api/v1/url/redirect/**}'

@@ -205,9 +205,48 @@ services:
       timeout: 10s
       retries: 5
 
+  # ==================== MongoDB（短链 KGS 服务） ====================
+  mongo:
+    image: mongo:7
+    container_name: livemall-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - livemall-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ==================== Redis 单节点（短链服务用） ====================
+  redis:
+    image: redis:alpine
+    container_name: livemall-redis-single
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis-single-data:/data
+    networks:
+      - livemall-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
   mysql-data:
     name: livemall-mysql-data
+  mongo-data:
+    name: livemall-mongo-data
+  redis-single-data:
+    name: livemall-redis-single-data
   redis-data-1:
     name: livemall-redis-data-1
   redis-data-2:
