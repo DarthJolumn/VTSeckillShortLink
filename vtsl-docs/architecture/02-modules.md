@@ -38,10 +38,11 @@ config/
 | user-service | `/auth/**`, `/user/**` | `lb://vtsl-user:8081` |
 | seckill-service | `/seckill/**` | `lb://vtsl-seckill:8090` |
 | product-service | `/product/**` | `lb://vtsl-seckill:8090` |
-| leaderboard-service | `/leaderboard/**` | `lb://vtsl-leaderboard:8085` |
+| leaderboard-service | `/leaderboard/**` | `lb://vtsl-leaderboard:8084` |
 | live-service | `/live/**` | `lb://vtsl-websocket:8083` |
 | websocket-service | `/ws/**` | `lb:ws://vtsl-websocket:8083` |
-| shortlink-service | `/s/**` | `lb://vtsl-shortlink:8084` |
+| shortlink-service | `/s/**` | `lb://vtsl-shortlink:8091`（simple，遗留） |
+| shortlink-api-service | `/api/v1/**` | `lb://vtsl-shortlink-api:8085` |
 
 ---
 
@@ -116,9 +117,10 @@ warmup/
 
 ## ShortLink
 
-> `vtsl-shortlink` · 端口 8084 · Spring MVC + VT · Dubbo:20884 · Kafka 消费
+> `vtsl-shortlink-simple`（遗留） · 端口 8091 · Spring MVC + VT · Dubbo:20886 · Kafka 消费
+> **新版架构**：`vtsl-shortlink-keygenerator`（KGS，端口 8082 / gRPC 50051，Mongo 状态 + Redis 队列预生成短码）+ `vtsl-shortlink-api`（端口 8085 / Dubbo:20885，URL CRUD / 重定向 / Analytics / 二级缓存 / 限流，gRPC 客户端向 KGS 取码）。由 Go `shortly` 项目重构而来（`shortly/` 目录为源码溯源）。
 
-### API
+### API（simple 旧版）
 
 | Method | Path | 鉴权 | 说明 |
 |--------|------|------|------|
@@ -129,7 +131,19 @@ warmup/
 | GET | `/s/manage/{id}` | JWT | 详情 |
 | DELETE | `/s/manage/{id}` | JWT | 软删除 |
 
-### 核心类
+### API（新版 vtsl-shortlink-api，`/api/v1/**`）
+
+| Method | Path | 鉴权 | 说明 |
+|--------|------|------|------|
+| POST | `/api/v1/url/shorten` | JWT + 限流 | 创建短链（KGS 取码或自定义） |
+| GET | `/api/v1/url/` | JWT + 限流 | 我的短链列表 |
+| GET | `/api/v1/url/{shortKey}` | JWT + 限流 | 详情 |
+| PATCH | `/api/v1/url/{shortKey}` | JWT + 限流 | 更新（可换码） |
+| DELETE | `/api/v1/url/{shortKey}` | JWT + 限流 | 软删除 |
+| GET | `/api/v1/url/redirect/{shortKey}` | 公开 + 限流 | 跳转解析（返回原 URL） |
+| GET | `/api/v1/analytics/{urlId}` | JWT + 限流 | 点击统计 |
+
+### 核心类（simple 旧版）
 
 ```
 controller/ShortLinkController.java  # REST 接口
@@ -171,7 +185,7 @@ WsPushServiceImpl.java      # Dubbo WsPushService 实现
 
 ## Leaderboard
 
-> `vtsl-leaderboard` · 端口 8085 · Spring MVC + VT · Dubbo:20885
+> `vtsl-leaderboard` · 端口 8084 · Spring MVC + VT · Dubbo:20884
 
 ### 核心类
 
