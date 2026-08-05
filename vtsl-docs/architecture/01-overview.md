@@ -18,7 +18,7 @@
             ▼                               ▼                              ▼
    ┌──────────────┐               ┌──────────────────┐          ┌──────────────────┐
    │  User          │◄────Dubbo────│  WebSocket        │◄──Dubbo──│  Leaderboard     │
-   │  :8081         │               │  :8083             │          │  :8084            │
+   │  :8081         │               │  :8083             │          │  KGS :8082 :50051 │
    │  VT · MySQL    │               │  VT · Kafka · WS   │          │  VT · Redis ZSET  │
    │  JWT · Redis   │               │  Redis Pub/Sub     │          │  Dubbo Provider   │
    └──────────────┘               └────────┬─────────┘          └──────────────────┘
@@ -27,11 +27,11 @@
                                      │                │
                                      ▼                ▼
                             ┌──────────────┐  ┌──────────────────┐
-                            │  Seckill      │  │  ShortLink        │
-                            │  :8090         │  │  :8084            │
+                            │  Seckill      │  │  ShortLink-API   │
+                            │  :8090         │  │  KGS :8082 :50051 │
                             │  Lua · Kafka   │  │  Caffeine+Redis   │
-                            │  Redis Cluster │  │  DCL 防击穿       │
-                            │  Sentinel      │  │  Rate Limiter     │
+                            │  Redis Cluster │  │  二级缓存 · 限流   │
+                            │  Sentinel      │  │  点击统计 · 限流   │
                             └──────┬───────┘  └──────────────────┘
                                    │
                                    ▼
@@ -77,10 +77,12 @@
 | `vtsl-gateway` | 8080 | 网关 (WebFlux)；路由转发、JWT 鉴权、签名验签、Sentinel 限流 |
 | `vtsl-user` | 8081 | 用户服务；注册登录、双 Token、设备管理、封禁解禁 |
 | `vtsl-seckill` | 8090 | 秒杀 + 商品；活动管理、Redis Lua 扣减、Kafka 异步下单 |
-| `vtsl-shortlink` | 8084 | 短链系统；算法码派生、三级缓存、点击统计 |
+| `vtsl-shortlink`（simple，遗留） | 8091 | 旧版短链；Redis INCR + Base62、三级缓存、Kafka 统计 |
+| `vtsl-shortlink-api` | 8085 | 新版短链 API；URL CRUD/重定向/Analytics、二级缓存、限流、KGS gRPC 客户端 |
+| `vtsl-shortlink-keygenerator` | 8082 | KGS 短码预生成；Mongo 状态 + Redis 队列 + gRPC:50051 |
 | `vtsl-websocket` | 8083 | 直播间；WebSocket 弹幕/送礼、Redis Pub/Sub 秒杀推送 |
-| `vtsl-leaderboard` | 8085 | 排行榜；Redis ZSet 实时 TopN + 历史快照 |
-| `vtsl-common` | - | 公共库；ScopedValue、编解码器、注解、DTO |
+| `vtsl-leaderboard` | 8084 | 排行榜；Redis ZSet 实时 TopN + 历史快照 |
+| `vtsl-common` | - | 公共库；ScopedValue、编解码器、gRPC proto、注解、DTO |
 
 ---
 
@@ -91,9 +93,11 @@
 | gateway | 8080 | HTTP WebFlux | — |
 | user | 8081 | HTTP MVC | 20881 |
 | websocket | 8083 | HTTP MVC + WS | 20883 |
-| shortlink | 8084 | HTTP MVC | 20884 |
-| leaderboard | 8085 | HTTP MVC | 20885 |
+| shortlink-keygenerator | 8082 | HTTP MVC + gRPC | — |
+| leaderboard | 8084 | HTTP MVC | 20885 |
+| shortlink-api | 8085 | HTTP MVC | 20885 |
 | seckill | 8090 | HTTP MVC | 20882 |
+| shortlink-simple（遗留） | 8091 | HTTP MVC | 20884 |
 
 **中间件**（VM: 192.168.147.132）：
 
@@ -102,6 +106,7 @@
 | Redis (单节点) | 6379 |
 | Redis Cluster | 6381 / 6382 / 6383 |
 | MySQL | 3306 |
+| MongoDB（KGS shortkeys） | 27017 |
 | Nacos | 8848 |
 | Kafka | 9092 |
 | Sentinel Dashboard | 8858 |
@@ -118,7 +123,8 @@ spring.cloud.gateway.server.webflux.routes:
   - id: leaderboard-service   # Path=/leaderboard/**         → lb://vtsl-leaderboard
   - id: live-service          # Path=/live/**                → lb://vtsl-websocket
   - id: websocket-service     # Path=/ws/**                  → lb:ws://vtsl-websocket
-  - id: shortlink-service     # Path=/s/**                   → lb://vtsl-shortlink
+  - id: shortlink-service     # Path=/s/**                   → lb://vtsl-shortlink (simple, 遗留)
+  - id: shortlink-api-service # Path=/api/v1/**              → lb://vtsl-shortlink-api
 ```
 
 **白名单**（免 JWT）：

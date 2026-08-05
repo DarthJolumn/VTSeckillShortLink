@@ -64,9 +64,6 @@ dubbo:
 shortly:
   kgs:
     grpc-address: ${KGS_GRPC_ADDRESS:localhost:50051}
-  jwt:
-    secret: ${JWT_SECRET:change-me-please-at-least-32-bytes}
-    expiration-hours: 24
   geoip:
     base-url: https://ipapi.co
     timeout-seconds: 2
