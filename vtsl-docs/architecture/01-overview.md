@@ -94,10 +94,10 @@
 | user | 8081 | HTTP MVC | 20881 |
 | websocket | 8083 | HTTP MVC + WS | 20883 |
 | shortlink-keygenerator | 8082 | HTTP MVC + gRPC | — |
-| leaderboard | 8084 | HTTP MVC | 20885 |
+| leaderboard | 8084 | HTTP MVC | 20884 |
 | shortlink-api | 8085 | HTTP MVC | 20885 |
 | seckill | 8090 | HTTP MVC | 20882 |
-| shortlink-simple（遗留） | 8091 | HTTP MVC | 20884 |
+| shortlink-simple（遗留） | 8091 | HTTP MVC | 20886 |
 
 **中间件**（VM: 192.168.147.132）：
 

@@ -83,7 +83,7 @@ dubbo:
     name: vtsl-shortlink
   protocol:
     name: dubbo
-    port: 20884
+    port: 20886  # 原 20884 与 vtsl-leaderboard(20884) 冲突，改为 20886（api 模块已占 20885）
   registry:
     address: nacos://${NACOS_ADDR:192.168.147.132:8848}?registry-type=service&group=dubbo
   consumer:
