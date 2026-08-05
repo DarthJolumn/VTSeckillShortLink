@@ -3,6 +3,7 @@ package com.jolumn.vtslseckill.consumer;
 import com.jolumn.vtslseckill.entity.SeckillActivity;
 import com.jolumn.vtslseckill.service.ActivityCacheService;
 import com.jolumn.vtslseckill.service.SeckillService;
+import com.jolumn.vtslseckill.service.StockService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,14 +31,17 @@ public class SeckillOrderConsumer {
 
     private final SeckillService seckillService;
     private final ActivityCacheService cacheService;
+    private final StockService stockService;
     private final StringRedisTemplate redisTemplate;
 
     public SeckillOrderConsumer(SeckillService seckillService,
                                 ActivityCacheService cacheService,
+                                StockService stockService,
                                 StringRedisTemplate redisTemplate,
                                 @Value("${seckill.consumer-max-concurrency:30}") int maxConcurrency) {
         this.seckillService = seckillService;
         this.cacheService = cacheService;
+        this.stockService = stockService;
         this.redisTemplate = redisTemplate;
         this.SEM = new Semaphore(maxConcurrency);
     }
@@ -65,7 +69,14 @@ public class SeckillOrderConsumer {
 
                 SeckillActivity activity = cacheService.getActivity(activityId);
                 if (activity == null) {
-                    log.error("活动不存在: activityId={}", activityId);
+                    // 活动缺失（被删/缓存失效）：Redis 库存已扣但订单无法落库 → 幂等回补库存
+                    // refund Lua 仅在 ordered:{activityId}:{userId} 存在时才 INCR，恶意/重复消息不会污染库存
+                    try {
+                        stockService.refund(activityId, userId);
+                        log.error("活动不存在，已幂等回补库存: activityId={}, userId={}", activityId, userId);
+                    } catch (Exception refundEx) {
+                        log.error("活动不存在且回补库存失败: activityId={}, userId={}", activityId, userId, refundEx);
+                    }
                     ack.acknowledge();
                     return;
                 }
