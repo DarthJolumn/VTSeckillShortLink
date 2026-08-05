@@ -20,6 +20,10 @@ spring:
       ddl-auto: none
     show-sql: false
     open-in-view: false
+  # 启动时自动执行 schema.sql（CREATE TABLE IF NOT EXISTS 幂等）建 t_url/t_analytics
+  sql:
+    init:
+      mode: always
   data:
     redis:
       host: ${REDIS_HOST:192.168.147.132}
