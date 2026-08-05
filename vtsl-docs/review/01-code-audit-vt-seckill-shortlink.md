@@ -200,8 +200,10 @@ if (originalUrl == null) {
 | `6942845` | P2 | 文档端口/MongoDB/路由对齐；api 移除残留 jwt 配置；新增本报告 |
 | `a7f6da4` | P0-2（Dubbo） | simple Dubbo 20884 → 20886（review 补充发现：与 leaderboard 20884 冲突） |
 | `20dd7e1` | P1-1/P0-3 完善 | KGS `getKey()` 循环重试（`MAX_ISSUE_ATTEMPTS=3`）自愈；`parseCached` 损坏值回源 DB |
+| `5a62e54` | P0-2（Dubbo 2） | vtsl-product Dubbo 20885 → 20887（review 二轮发现：与 api 20885 冲突） |
+| `8e115c7` | P2-1 | 02-modules 端口/路由对齐 + 补充新版短链（api/keygenerator）模块与接口表 |
 
-**已修复：P0-1 / P0-2（HTTP+Dubbo）/ P0-3 / P1-1 / P1-4 / P2-1 / P2-2 / P2-5**
+**已修复：P0-1 / P0-2（HTTP+Dubbo×2）/ P0-3 / P1-1 / P1-4 / P2-1 / P2-2 / P2-5**
 **待处理**：P1-2（MongoDB 决策：补装 Mongo 或迁 MySQL）、P1-3（自定义短码并发唯一性）、P2-3（simple 去留）、P2-4（Kafka 分区有序性）、P2-6（retryCounts 清理）
 
 ---
