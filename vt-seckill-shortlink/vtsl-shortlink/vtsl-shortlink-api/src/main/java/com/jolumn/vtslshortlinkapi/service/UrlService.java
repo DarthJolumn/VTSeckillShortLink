@@ -25,6 +25,11 @@ public class UrlService {
     private static final Logger log = LoggerFactory.getLogger(UrlService.class);
     private static final String CACHE_PREFIX = "url:";
     private static final Duration CACHE_TTL = Duration.ofHours(24);
+    /** 缓存值分隔符："{urlId}|{originalUrl}"，携带 urlId 使缓存命中时无需回查 DB 即可记 analytics */
+    private static final String CACHE_SEPARATOR = "|";
+
+    /** 缓存条目：urlId 为 null 表示旧格式缓存（无 id 前缀），过渡期内不记 analytics */
+    private record CachedUrl(Long urlId, String originalUrl) {}
 
     private final UrlRepository urlRepository;
     private final KeyServiceClient keyServiceClient;
@@ -123,21 +128,24 @@ public class UrlService {
     }
 
     public String redirect(String shortKey, String clientIp, String userAgent, String referer) {
-        String originalUrl = getFromCache(shortKey);
+        CachedUrl cached = getFromCache(shortKey);
 
-        if (originalUrl == null) {
+        Long urlId;
+        String originalUrl;
+        if (cached == null) {
             Url url = urlRepository.findByShortKeyAndDeletedAtIsNull(shortKey)
                     .orElseThrow(() -> new BizException(404, "URL not found"));
+            urlId = url.getId();
             originalUrl = url.getOriginalUrl();
             cacheUrl(url);
-            analyticsAsyncService.record(url.getId(), clientIp, userAgent, referer);
         } else {
-            Url url = urlRepository.findByShortKeyAndDeletedAtIsNull(shortKey).orElse(null);
-            if (url != null) {
-                analyticsAsyncService.record(url.getId(), clientIp, userAgent, referer);
-            }
+            urlId = cached.urlId();
+            originalUrl = cached.originalUrl();
         }
 
+        if (urlId != null) {
+            analyticsAsyncService.record(urlId, clientIp, userAgent, referer);
+        }
         return originalUrl;
     }
 
@@ -150,21 +158,35 @@ public class UrlService {
         return url;
     }
 
-    private String getFromCache(String shortKey) {
-        String url = localCache.getIfPresent(shortKey);
-        if (url != null) return url;
+    private CachedUrl getFromCache(String shortKey) {
+        String local = localCache.getIfPresent(shortKey);
+        if (local != null) return parseCached(local);
 
         String cached = redisTemplate.opsForValue().get(CACHE_PREFIX + shortKey);
         if (cached != null) {
             localCache.put(shortKey, cached);
-            return cached;
+            return parseCached(cached);
         }
         return null;
     }
 
+    /** 解析 "{urlId}|{originalUrl}"；无分隔符视为旧格式（id 缺失，urlId=null） */
+    private CachedUrl parseCached(String value) {
+        int idx = value.indexOf(CACHE_SEPARATOR);
+        if (idx < 0) {
+            return new CachedUrl(null, value);
+        }
+        try {
+            return new CachedUrl(Long.parseLong(value.substring(0, idx)), value.substring(idx + 1));
+        } catch (NumberFormatException e) {
+            return new CachedUrl(null, value);
+        }
+    }
+
     private void cacheUrl(Url url) {
-        localCache.put(url.getShortKey(), url.getOriginalUrl());
-        redisTemplate.opsForValue().set(CACHE_PREFIX + url.getShortKey(), url.getOriginalUrl(), CACHE_TTL);
+        String value = url.getId() + CACHE_SEPARATOR + url.getOriginalUrl();
+        localCache.put(url.getShortKey(), value);
+        redisTemplate.opsForValue().set(CACHE_PREFIX + url.getShortKey(), value, CACHE_TTL);
     }
 
     private void cacheUrlAsync(Url url) {
