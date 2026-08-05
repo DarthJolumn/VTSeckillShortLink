@@ -9,7 +9,7 @@ spring:
       enabled: true
   # Boot 4 新前缀 spring.mongodb（spring.data.mongodb 连接属性已 deprecated，实测不生效会落默认 test 库）
   mongodb:
-    uri: mongodb://${MONGO_HOST:192.168.147.132}:27017/shortly
+    uri: mongodb://${MONGO_HOST:localhost}:27017/shortly
     database: shortly
   data:
     mongodb:
