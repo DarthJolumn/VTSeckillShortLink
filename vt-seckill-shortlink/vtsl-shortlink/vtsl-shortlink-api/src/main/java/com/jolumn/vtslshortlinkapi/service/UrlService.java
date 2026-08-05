@@ -170,7 +170,7 @@ public class UrlService {
         return null;
     }
 
-    /** 解析 "{urlId}|{originalUrl}"；无分隔符视为旧格式（id 缺失，urlId=null） */
+    /** 解析 "{urlId}|{originalUrl}"；无分隔符视为旧格式（id 缺失，urlId=null），有分隔符但前缀非数字视为损坏数据返回 null 回源 DB */
     private CachedUrl parseCached(String value) {
         int idx = value.indexOf(CACHE_SEPARATOR);
         if (idx < 0) {
@@ -179,7 +179,8 @@ public class UrlService {
         try {
             return new CachedUrl(Long.parseLong(value.substring(0, idx)), value.substring(idx + 1));
         } catch (NumberFormatException e) {
-            return new CachedUrl(null, value);
+            log.warn("缓存值格式异常，回源 DB 重新缓存: {}", value);
+            return null;
         }
     }
 

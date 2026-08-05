@@ -28,36 +28,39 @@ public class KeyService {
     }
 
     public String getKey() {
-        Long queueLen = redisTemplate.opsForList().size(KgsConstants.REDIS_QUEUE_NAME);
-        if (queueLen == null) {
-            throw new RuntimeException("Redis unavailable");
+        // 最多尝试 MAX_ISSUE_ATTEMPTS 次：CAS 失败（脏 key）或队列瞬时为空时取下一个，调用方无需重试
+        for (int attempt = 0; attempt < KgsConstants.MAX_ISSUE_ATTEMPTS; attempt++) {
+            Long queueLen = redisTemplate.opsForList().size(KgsConstants.REDIS_QUEUE_NAME);
+            if (queueLen == null) {
+                throw new RuntimeException("Redis unavailable");
+            }
+
+            if (queueLen < KgsConstants.QUEUE_THRESHOLD) {
+                log.info("Queue length {} below threshold {}, generating more keys", queueLen, KgsConstants.QUEUE_THRESHOLD);
+                keyGenerator.generateBatch(KgsConstants.BATCH_SIZE);
+            }
+
+            String key = redisTemplate.opsForList().rightPop(KgsConstants.REDIS_QUEUE_NAME);
+            if (key == null) {
+                log.warn("Queue empty after refill (attempt {}/{})", attempt + 1, KgsConstants.MAX_ISSUE_ATTEMPTS);
+                continue;
+            }
+
+            // CAS 更新：仅当 key 仍为 available 时才置为 used。
+            // 若此前出现过"标记超时但实际已成功"，key 已是 used → modifiedCount=0。
+            // 不再 push 回队列：已 USED 的脏 key 若回队会陷入"取出→CAS 失败→回队"死循环，直接丢弃取下一个。
+            var result = mongoTemplate.updateFirst(
+                    Query.query(Criteria.where("key").is(key).and("status").is(KgsConstants.STATUS_AVAILABLE)),
+                    Update.update("status", KgsConstants.STATUS_USED),
+                    "shortkeys"
+            );
+
+            if (result.getModifiedCount() > 0) {
+                log.debug("Key issued: {}", key);
+                return key;
+            }
+            log.warn("CAS failed for key {}, discarded (attempt {}/{})", key, attempt + 1, KgsConstants.MAX_ISSUE_ATTEMPTS);
         }
-
-        if (queueLen < KgsConstants.QUEUE_THRESHOLD) {
-            log.info("Queue length {} below threshold {}, generating more keys", queueLen, KgsConstants.QUEUE_THRESHOLD);
-            keyGenerator.generateBatch(KgsConstants.BATCH_SIZE);
-        }
-
-        String key = redisTemplate.opsForList().rightPop(KgsConstants.REDIS_QUEUE_NAME);
-        if (key == null) {
-            throw new RuntimeException("Queue empty after refill");
-        }
-
-        // CAS 更新：仅当 key 仍为 available 时才置为 used。
-        // 若此前出现过"标记超时但实际已成功"，key 已是 used → modifiedCount=0。
-        var result = mongoTemplate.updateFirst(
-                Query.query(Criteria.where("key").is(key).and("status").is(KgsConstants.STATUS_AVAILABLE)),
-                Update.update("status", KgsConstants.STATUS_USED),
-                "shortkeys"
-        );
-
-        if (result.getModifiedCount() == 0) {
-            // 不再 push 回队列：已 USED 的脏 key 若回队会陷入"取出→CAS 失败→回队"死循环。
-            // 丢弃该 key（随机生成成本极低），调用方重试会取队列中的下一个 key。
-            throw new RuntimeException("Failed to CAS key status, discarded key " + key);
-        }
-
-        log.debug("Key issued: {}", key);
-        return key;
+        throw new RuntimeException("Failed to issue key after " + KgsConstants.MAX_ISSUE_ATTEMPTS + " attempts");
     }
 }
