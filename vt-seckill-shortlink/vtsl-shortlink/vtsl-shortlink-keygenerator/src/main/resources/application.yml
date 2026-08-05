@@ -9,7 +9,8 @@ spring:
       enabled: true
   data:
     mongodb:
-      uri: mongodb://${MONGO_HOST:192.168.147.132}:27017
+      # uri 带库名路径，避免与 database 属性并存时落默认 test 库
+      uri: mongodb://${MONGO_HOST:192.168.147.132}:27017/shortly
       database: shortly
       # 自动为 @Document + @Indexed(unique=true) 建唯一索引（shortkeys.key 防重），默认 false 必须显式开启
       auto-index-creation: true
