@@ -188,6 +188,24 @@ if (originalUrl == null) {
 
 ---
 
+## 6. 修复记录（2026-08-05，分支 feature/shortlink）
+
+| Commit | 对应问题 | 内容 |
+|---|---|---|
+| `e8fc7e9` | P0-1 | api/keygenerator 补 `scanBasePackages`（照 seckill 模板 + context 包） |
+| `fe4373c` | P0-2（HTTP） | simple 8084 → 8091（对齐其 README） |
+| `8a3dab5` | P0-3 | redirect 缓存 value 改 `{urlId}|{originalUrl}`，命中零 DB；旧格式兼容 |
+| `41911ea` | P1-1（初版） | KGS 出队 key CAS 更新（`status=available` 条件），失败丢弃不再 push 回 |
+| `b359f81` | P1-4 | Consumer 活动缺失时 `stockService.refund` 幂等回补库存 + error 告警 |
+| `6942845` | P2 | 文档端口/MongoDB/路由对齐；api 移除残留 jwt 配置；新增本报告 |
+| `a7f6da4` | P0-2（Dubbo） | simple Dubbo 20884 → 20886（review 补充发现：与 leaderboard 20884 冲突） |
+| `20dd7e1` | P1-1/P0-3 完善 | KGS `getKey()` 循环重试（`MAX_ISSUE_ATTEMPTS=3`）自愈；`parseCached` 损坏值回源 DB |
+
+**已修复：P0-1 / P0-2（HTTP+Dubbo）/ P0-3 / P1-1 / P1-4 / P2-1 / P2-2 / P2-5**
+**待处理**：P1-2（MongoDB 决策：补装 Mongo 或迁 MySQL）、P1-3（自定义短码并发唯一性）、P2-3（simple 去留）、P2-4（Kafka 分区有序性）、P2-6（retryCounts 清理）
+
+---
+
 ## 附：审查方法说明
 
 - 主链路由 codegraph（`codegraph explore`）定位：KGS `getKey` → gRPC → api `UrlService.create/redirect`；秒杀 `SeckillService.placeOrder` → 策略工厂 → `StockService.deduct` → Lua → `SeckillOrderConsumer`
