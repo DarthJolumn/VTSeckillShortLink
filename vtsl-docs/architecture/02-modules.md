@@ -115,6 +115,14 @@ warmup/
 
 ---
 
+## Product
+
+> `vtsl-product` · 端口 8093 · Spring MVC + VT · Dubbo:20887
+
+商品服务模块（网关 `/product/**` 路由至 vtsl-seckill，本服务主要作为 Dubbo Provider 暴露商品 RPC）。
+
+---
+
 ## ShortLink
 
 > `vtsl-shortlink-simple`（遗留） · 端口 8091 · Spring MVC + VT · Dubbo:20886 · Kafka 消费
