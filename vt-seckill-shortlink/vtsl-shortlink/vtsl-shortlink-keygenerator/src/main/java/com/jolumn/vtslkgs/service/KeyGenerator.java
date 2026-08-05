@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,13 @@ public class KeyGenerator {
     public KeyGenerator(MongoTemplate mongoTemplate, StringRedisTemplate redisTemplate) {
         this.mongoTemplate = mongoTemplate;
         this.redisTemplate = redisTemplate;
+    }
+
+    /** 启动探针：打印实际连接的 Mongo 库名（排查 shortkeys 误落 test 库问题） */
+    @PostConstruct
+    public void logMongoDatabase() {
+        log.info("KGS 连接 MongoDB 库: '{}'（shortkeys 唯一索引由 auto-index-creation 自动创建）",
+                mongoTemplate.getDb().getName());
     }
 
     public void generateBatch(int count) {
