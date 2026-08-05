@@ -43,15 +43,18 @@ public class KeyService {
             throw new RuntimeException("Queue empty after refill");
         }
 
+        // CAS 更新：仅当 key 仍为 available 时才置为 used。
+        // 若此前出现过"标记超时但实际已成功"，key 已是 used → modifiedCount=0。
         var result = mongoTemplate.updateFirst(
-                Query.query(Criteria.where("key").is(key)),
+                Query.query(Criteria.where("key").is(key).and("status").is(KgsConstants.STATUS_AVAILABLE)),
                 Update.update("status", KgsConstants.STATUS_USED),
                 "shortkeys"
         );
 
         if (result.getModifiedCount() == 0) {
-            redisTemplate.opsForList().leftPush(KgsConstants.REDIS_QUEUE_NAME, key);
-            throw new RuntimeException("Failed to update key status in DB, pushed key " + key + " back");
+            // 不再 push 回队列：已 USED 的脏 key 若回队会陷入"取出→CAS 失败→回队"死循环。
+            // 丢弃该 key（随机生成成本极低），调用方重试会取队列中的下一个 key。
+            throw new RuntimeException("Failed to CAS key status, discarded key " + key);
         }
 
         log.debug("Key issued: {}", key);
