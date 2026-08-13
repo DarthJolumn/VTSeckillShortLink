@@ -135,6 +135,26 @@ seckill:
   activity-cache:
     ttl-seconds: 5
     max-size: 1000
+  # ====== RedisAsync 可靠性（pending + 补偿 + 监控） ======
+  async:
+    # pending 标记 TTL（5min，覆盖补投周期与消费时间）
+    pending-ttl-seconds: 300
+    # pending 补投任务开关（压测时置 false）
+    resend-enabled: true
+    # pending 补投扫描间隔（30s）
+    resend-interval-ms: 30000
+    # 每次补投批量上限
+    resend-batch: 200
+    # 补偿队列消费间隔（5s，比 pending 扫描更快）
+    compensate-interval-ms: 5000
+    # 补偿重试上限，超过进死信队列
+    compensate-max-retry: 3
+    # 监控统计间隔（1min）
+    monitor-interval-ms: 60000
+    # pending 积压告警阈值
+    monitor-warn-pending: 100
+    # 死信队列积压告警阈值
+    monitor-warn-dead-letter: 10
 
 # ====== Kafka topic ======
 kafka:
