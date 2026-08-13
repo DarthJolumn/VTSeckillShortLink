@@ -1,6 +1,8 @@
 package com.jolumn.vtslseckill.strategy;
 
-import com.jolumn.vtslseckill.entity.enums.SeckillMode;
+import com.jolumn.vtslseckill.biz.service.strategy.*;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.enums.SeckillMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,17 +21,17 @@ class SeckillStrategyFactoryTest {
     void setUp() {
         SeckillStrategy redisAsync = new SeckillStrategy() {
             @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(com.jolumn.vtslseckill.entity.SeckillActivity a, Long b, String c) {}
+            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
             @Override public void refundStock(Long a, Long b) {}
         };
         SeckillStrategy redisSync = new SeckillStrategy() {
             @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(com.jolumn.vtslseckill.entity.SeckillActivity a, Long b, String c) {}
+            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
             @Override public void refundStock(Long a, Long b) {}
         };
         SeckillStrategy dbQueue = new SeckillStrategy() {
             @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(com.jolumn.vtslseckill.entity.SeckillActivity a, Long b, String c) {}
+            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
             @Override public void refundStock(Long a, Long b) {}
         };
         factory = new SeckillStrategyFactory(List.of(redisAsync, redisSync, dbQueue));

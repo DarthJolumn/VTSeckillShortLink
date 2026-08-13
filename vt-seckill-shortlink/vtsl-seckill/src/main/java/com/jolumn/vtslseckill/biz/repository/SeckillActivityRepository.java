@@ -1,6 +1,6 @@
-package com.jolumn.vtslseckill.repository;
+package com.jolumn.vtslseckill.biz.repository;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

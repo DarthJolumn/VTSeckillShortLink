@@ -1,6 +1,6 @@
-package com.jolumn.vtslseckill.repository;
+package com.jolumn.vtslseckill.biz.repository;
 
-import com.jolumn.vtslseckill.entity.SeckillOrder;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 

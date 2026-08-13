@@ -1,6 +1,6 @@
-package com.jolumn.vtslseckill.entity;
+package com.jolumn.vtslseckill.model.entity;
 
-import com.jolumn.vtslseckill.entity.enums.SeckillMode;
+import com.jolumn.vtslseckill.model.enums.SeckillMode;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

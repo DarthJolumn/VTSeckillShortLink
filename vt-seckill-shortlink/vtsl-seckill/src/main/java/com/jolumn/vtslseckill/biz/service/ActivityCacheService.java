@@ -1,9 +1,9 @@
-package com.jolumn.vtslseckill.service;
+package com.jolumn.vtslseckill.biz.service;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 

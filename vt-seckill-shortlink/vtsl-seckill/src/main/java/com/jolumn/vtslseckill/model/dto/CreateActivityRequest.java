@@ -1,5 +1,6 @@
-package com.jolumn.vtslseckill.dto;
+package com.jolumn.vtslseckill.model.dto;
 
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -56,9 +57,9 @@ public class CreateActivityRequest {
     public void setRoomId(Long roomId) { this.roomId = roomId; }
 
     /** 转换为 SeckillActivity 实体 */
-    public com.jolumn.vtslseckill.entity.SeckillActivity toEntity() {
-        com.jolumn.vtslseckill.entity.SeckillActivity entity =
-                new com.jolumn.vtslseckill.entity.SeckillActivity();
+    public SeckillActivity toEntity() {
+        SeckillActivity entity =
+                new SeckillActivity();
         entity.setTitle(this.name);
         entity.setSeckillPrice(this.price);
         entity.setOriginalPrice(this.origPrice);

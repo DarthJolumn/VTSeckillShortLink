@@ -1,10 +1,10 @@
 package com.jolumn.vtslseckill.scheduler;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.entity.SeckillOrder;
-import com.jolumn.vtslseckill.entity.enums.SeckillMode;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
-import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
+import com.jolumn.vtslseckill.model.enums.SeckillMode;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.repository.SeckillOrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

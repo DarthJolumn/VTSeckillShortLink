@@ -1,4 +1,4 @@
-package com.jolumn.vtslseckill.entity.enums;
+package com.jolumn.vtslseckill.model.enums;
 
 public enum SeckillMode {
     REDIS_ASYNC,  // Redis Lua 原子扣减 + Kafka 异步落库（send() 不等待，消费端落库）

@@ -1,16 +1,15 @@
 package com.jolumn.vtslseckill.scheduler;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.entity.SeckillOrder;
-import com.jolumn.vtslseckill.entity.enums.SeckillMode;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
-import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
+import com.jolumn.vtslseckill.model.enums.SeckillMode;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.repository.SeckillOrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.Mockito.*;

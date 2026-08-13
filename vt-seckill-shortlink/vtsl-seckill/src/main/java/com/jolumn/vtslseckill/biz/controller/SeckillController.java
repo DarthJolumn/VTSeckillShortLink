@@ -1,11 +1,11 @@
-package com.jolumn.vtslseckill.controller;
+package com.jolumn.vtslseckill.biz.controller;
 
 import com.jolumn.vtslcommon.dto.Result;
 import com.jolumn.vtslcommon.util.SnowflakeIdGenerator;
-import com.jolumn.vtslseckill.dto.CreateActivityRequest;
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.entity.SeckillOrder;
-import com.jolumn.vtslseckill.service.SeckillService;
+import com.jolumn.vtslseckill.model.dto.CreateActivityRequest;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
+import com.jolumn.vtslseckill.biz.service.SeckillService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,9 +36,14 @@ public class SeckillController {
         return Result.ok();
     }
 
+    /**
+     * 获取秒杀活动详情
+     * @param id
+     * @return
+     */
     @GetMapping("/activity/{id}")
     public Result<SeckillActivity> activityDetail(@PathVariable Long id) {
-        return Result.ok(seckillService.getActivity(id));
+        return Result.ok(seckillService.getActivityCached(id));
     }
 
     @GetMapping("/activity/list")

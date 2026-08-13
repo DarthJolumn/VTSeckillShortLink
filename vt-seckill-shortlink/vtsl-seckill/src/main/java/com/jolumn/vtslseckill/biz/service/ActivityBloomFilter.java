@@ -1,8 +1,8 @@
-package com.jolumn.vtslseckill.service;
+package com.jolumn.vtslseckill.biz.service;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

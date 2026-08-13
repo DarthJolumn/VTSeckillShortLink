@@ -1,11 +1,11 @@
 package com.jolumn.vtslseckill.scheduler;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.entity.SeckillOrder;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
-import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
-import com.jolumn.vtslseckill.strategy.SeckillStrategy;
-import com.jolumn.vtslseckill.strategy.SeckillStrategyFactory;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.repository.SeckillOrderRepository;
+import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategy;
+import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategyFactory;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

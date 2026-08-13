@@ -1,8 +1,8 @@
 package com.jolumn.vtslseckill.config;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
-import com.jolumn.vtslseckill.service.ActivityCacheService;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.service.ActivityCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;

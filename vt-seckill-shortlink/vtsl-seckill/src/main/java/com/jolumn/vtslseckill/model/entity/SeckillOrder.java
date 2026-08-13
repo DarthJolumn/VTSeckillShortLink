@@ -1,4 +1,4 @@
-package com.jolumn.vtslseckill.entity;
+package com.jolumn.vtslseckill.model.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;

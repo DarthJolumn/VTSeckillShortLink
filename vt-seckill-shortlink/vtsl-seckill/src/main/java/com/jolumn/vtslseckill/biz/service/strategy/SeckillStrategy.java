@@ -1,6 +1,6 @@
-package com.jolumn.vtslseckill.strategy;
+package com.jolumn.vtslseckill.biz.service.strategy;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 
 public interface SeckillStrategy {
 

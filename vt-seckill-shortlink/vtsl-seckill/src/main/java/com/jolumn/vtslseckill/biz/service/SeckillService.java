@@ -1,13 +1,14 @@
-package com.jolumn.vtslseckill.service;
+package com.jolumn.vtslseckill.biz.service;
 
 import com.jolumn.vtslcommon.exception.BizException;
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.entity.SeckillOrder;
-import com.jolumn.vtslseckill.entity.enums.SeckillMode;
-import com.jolumn.vtslseckill.strategy.SeckillStrategy;
-import com.jolumn.vtslseckill.strategy.SeckillStrategyFactory;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
-import com.jolumn.vtslseckill.repository.SeckillOrderRepository;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.model.entity.SeckillOrder;
+import com.jolumn.vtslseckill.model.enums.BizErrorCode;
+import com.jolumn.vtslseckill.model.enums.SeckillMode;
+import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategy;
+import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategyFactory;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.biz.repository.SeckillOrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,11 @@ public class SeckillService {
         this.seckillStrategyFactory = factory;
     }
 
+    /**
+     * 创建秒杀活动
+     * @param activity
+     * @return
+     */
     @Transactional
     public SeckillActivity createActivity(SeckillActivity activity) {
         if (activity.getStartTime().isAfter(activity.getEndTime())) {
@@ -50,11 +56,21 @@ public class SeckillService {
         return activityRepo.save(activity);
     }
 
+    /**
+     * 获取活动信息 - 直查DB
+     * @param activityId
+     * @return
+     */
     public SeckillActivity getActivity(Long activityId) {
         return activityRepo.findById(activityId)
                 .orElseThrow(() -> new BizException(404, "活动不存在"));
     }
 
+    /**
+     * 从缓存查活动信息
+     * @param activityId
+     * @return
+     */
     public SeckillActivity getActivityCached(Long activityId) {
         SeckillActivity activity = cacheService.getActivity(activityId);
         if (activity == null) {
@@ -63,6 +79,11 @@ public class SeckillService {
         return activity;
     }
 
+    /**
+     * 更新活动状态
+     * @param activityId
+     * @param status
+     */
     @Transactional
     public void updateStatus(Long activityId, Integer status) {
         SeckillActivity activity = activityRepo.findById(activityId)
@@ -79,19 +100,27 @@ public class SeckillService {
         }
     }
 
+    /**
+     * 扣库存
+     * @param activityId
+     * @param userId
+     * @param orderNo
+     * @return
+     */
     public String placeOrder(Long activityId, Long userId, String orderNo) {
         SeckillActivity activity = cacheService.getActivity(activityId);
-        if (activity == null) {
-            throw new BizException(404, "活动不存在");
-        }
-        if (activity.getStatus() != 1) {
-            throw new BizException(400, "活动未在进行中");
-        }
-        LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(activity.getStartTime()) || now.isAfter(activity.getEndTime())) {
-            throw new BizException(400, "不在活动时间范围内");
-        }
+        if (activity == null)
+            return BizErrorCode.ACTIVITY_NOT_EXIST.getMsg();
 
+        if (activity.getStatus() != 1)
+            return BizErrorCode.ACTIVITY_NOT_STARTED.getMsg();
+
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(activity.getStartTime()) || now.isAfter(activity.getEndTime()))
+            return BizErrorCode.ACTIVITY_NOT_IN_TIME.getMsg();
+
+
+        // 工厂模式选择 扣库存+落库 策略
         SeckillStrategy strategy = seckillStrategyFactory.getStrategy(activity.getMode());
 
         int result;
@@ -104,24 +133,25 @@ public class SeckillService {
         if (result == 200) {
             try {
                 strategy.createOrder(activity, userId, orderNo);
-                log.info("抢购成功: activityId={}, userId={}, orderNo={}, mode={}",
-                        activityId, userId, orderNo, activity.getMode());
+//                log.info("抢购成功: activityId={}, userId={}, orderNo={}, mode={}",
+//                        activityId, userId, orderNo, activity.getMode());
                 return "ok";
             } catch (Exception e) {
-                log.error("创建订单失败, 回补库存: activityId={}, userId={}, mode={}",
-                        activityId, userId, activity.getMode(), e);
+//                log.error("创建订单失败, 回补库存: activityId={}, userId={}, mode={}",
+//                        activityId, userId, activity.getMode(), e);
                 strategy.refundStock(activityId, userId);
                 throw new BizException(503, "系统繁忙，请稍后重试");
             }
         }
 
-        throw switch (result) {
-            case -1 -> new BizException(1010, "已参与过该活动");
-            case -2 -> new BizException(1009, "库存不足");
-            case -3 -> new BizException(500, "活动未初始化");
-            default -> new BizException(500, "系统繁忙");
+        return switch (result) {
+            case -1 -> BizErrorCode.USER_REPEAT_ORDER.getMsg();
+            case -2 -> BizErrorCode.STOCK_NOT_ENOUGH.getMsg();
+            case -3 -> BizErrorCode.ACTIVITY_NOT_INIT.getMsg();
+            default -> BizErrorCode.SYSTEM_BUSY.getMsg();
         };
     }
+
 
     @Transactional
     public SeckillOrder createOrder(SeckillActivity activity, Long userId, String orderNo) {

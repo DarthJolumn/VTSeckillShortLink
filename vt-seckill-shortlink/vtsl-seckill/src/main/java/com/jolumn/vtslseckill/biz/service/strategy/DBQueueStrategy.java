@@ -1,7 +1,7 @@
-package com.jolumn.vtslseckill.strategy;
+package com.jolumn.vtslseckill.biz.service.strategy;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,7 +29,6 @@ public class DBQueueStrategy implements SeckillStrategy {
         if (activity == null) return -3;
         int updated = activityRepo.decrementStockIfAvailable(activityId, activity.getVersion());
         if (updated > 0) {
-            log.info("DBQueue 乐观锁扣减成功: activityId={}", activityId);
             return 200;
         }
         return -2;

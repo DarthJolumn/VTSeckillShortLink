@@ -1,9 +1,9 @@
-package com.jolumn.vtslseckill.consumer;
+package com.jolumn.vtslseckill.biz.consumer;
 
-import com.jolumn.vtslseckill.entity.SeckillActivity;
-import com.jolumn.vtslseckill.service.ActivityCacheService;
-import com.jolumn.vtslseckill.service.SeckillService;
-import com.jolumn.vtslseckill.service.StockService;
+import com.jolumn.vtslseckill.model.entity.SeckillActivity;
+import com.jolumn.vtslseckill.biz.service.ActivityCacheService;
+import com.jolumn.vtslseckill.biz.service.SeckillService;
+import com.jolumn.vtslseckill.biz.service.StockService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +15,6 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.TransactionException;
 
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
