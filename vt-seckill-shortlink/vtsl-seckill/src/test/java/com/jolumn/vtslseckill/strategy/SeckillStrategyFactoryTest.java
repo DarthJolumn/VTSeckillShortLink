@@ -3,37 +3,32 @@ package com.jolumn.vtslseckill.strategy;
 import com.jolumn.vtslseckill.biz.service.strategy.*;
 import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 import com.jolumn.vtslseckill.model.enums.SeckillMode;
+import com.jolumn.vtslseckill.model.enums.SendOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class SeckillStrategyFactoryTest {
 
     private SeckillStrategyFactory factory;
 
+    @Mock private com.jolumn.vtslseckill.biz.mq.KafkaOrderSender sender;
+    @Mock private com.jolumn.vtslseckill.biz.mq.SyncDegradeController degrade;
+
     @BeforeEach
     void setUp() {
-        SeckillStrategy redisAsync = new SeckillStrategy() {
-            @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
-            @Override public void refundStock(Long a, Long b) {}
-        };
-        SeckillStrategy redisSync = new SeckillStrategy() {
-            @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
-            @Override public void refundStock(Long a, Long b) {}
-        };
-        SeckillStrategy dbQueue = new SeckillStrategy() {
-            @Override public int deductStock(Long a, Long b) { return 200; }
-            @Override public void createOrder(SeckillActivity a, Long b, String c) {}
-            @Override public void refundStock(Long a, Long b) {}
-        };
+        // 用真实策略实例（工厂 resolveMode 用 instanceof 具体类，匿名类无法识别）
+        RedisAsyncStrategy redisAsync = new RedisAsyncStrategy(null, sender);
+        RedisSyncStrategy redisSync = new RedisSyncStrategy(null, sender, degrade);
+        DBQueueStrategy dbQueue = new DBQueueStrategy(null, null);
         factory = new SeckillStrategyFactory(List.of(redisAsync, redisSync, dbQueue));
     }
 

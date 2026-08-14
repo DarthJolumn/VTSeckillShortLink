@@ -53,14 +53,18 @@ spring:
 
   # ====== Kafka（异步下单） ======
   kafka:
-    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:9092}
+    # Kafka 集群在 VM（192.168.147.132），应用也在 VM 跑 → 用 EXTERNAL listener（VM IP + 19092/19094/19096）
+    # EXTERNAL advertised 就是 VM IP，应用连上 broker 后能正确回连
+    bootstrap-servers: ${KAFKA_ADDR:192.168.147.132:19092,192.168.147.132:19094,192.168.147.132:19096}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       retries: 3
       batch-size: 16384
       buffer-memory: 33554432
-      acks: all
+      acks: all                # 等所有 ISR 副本确认（RF=3 + min.insync.replicas=2）
+      # 幂等生产者：防网络重试导致的重复消息（配合消费端唯一索引双保险）
+      enable-idempotence: true
     consumer:
       group-id: vtsl-seckill
       auto-offset-reset: earliest
@@ -69,7 +73,7 @@ spring:
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     listener:
       ack-mode: manual  # INSERT 成功后 ack.acknowledge()
-      concurrency: 4    # 4 个消费线程
+      concurrency: 4    # 4 个消费线程（topic 6 partition ≥ 4，线程全部活跃）
 
   # ====== Nacos ======
   cloud:
@@ -155,11 +159,17 @@ seckill:
     monitor-warn-pending: 100
     # 死信队列积压告警阈值
     monitor-warn-dead-letter: 10
+  # ====== 丢单对账（Redis 已扣无订单兜底） ======
+  lost-order-enabled: true
+  lost-order-scan-ms: 600000     # 每 10min 扫描 ordered:* 无订单标记
 
 # ====== Kafka topic ======
 kafka:
   topic:
     seckill-order: seckill-order
+    # topic 自动初始化（KafkaTopicConfig / KafkaAdmin 启动时幂等创建）
+    seckill-order-partitions: 6
+    replication-factor: 3
 
 # ====== 可观测性 ======
 management:

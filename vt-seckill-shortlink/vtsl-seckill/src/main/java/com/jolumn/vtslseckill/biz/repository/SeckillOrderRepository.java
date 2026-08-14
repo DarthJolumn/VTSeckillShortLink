@@ -21,4 +21,7 @@ public interface SeckillOrderRepository extends JpaRepository<SeckillOrder, Long
     List<SeckillOrder> findByStatusAndCancelledAtAfter(Integer status, LocalDateTime time);
 
     List<SeckillOrder> findByStatusAndCancelledAtAfter(Integer status, LocalDateTime time, Pageable pageable);
+
+    /** 丢单对账用：判断某用户在某活动是否已有订单 */
+    boolean existsByActivityIdAndUserId(Long activityId, Long userId);
 }

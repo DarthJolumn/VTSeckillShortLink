@@ -5,6 +5,7 @@ import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 import com.jolumn.vtslseckill.model.entity.SeckillOrder;
 import com.jolumn.vtslseckill.model.enums.BizErrorCode;
 import com.jolumn.vtslseckill.model.enums.SeckillMode;
+import com.jolumn.vtslseckill.model.enums.SendOutcome;
 import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategy;
 import com.jolumn.vtslseckill.biz.service.strategy.SeckillStrategyFactory;
 import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
@@ -131,17 +132,25 @@ public class SeckillService {
         }
 
         if (result == 200) {
+            // 发送：返回结果语义（CONFIRMED=同步送达 / ACCEPTED=异步受理 / TRANSIENT|FATAL=失败）
+            SendOutcome outcome;
             try {
-                strategy.createOrder(activity, userId, orderNo);
-//                log.info("抢购成功: activityId={}, userId={}, orderNo={}, mode={}",
-//                        activityId, userId, orderNo, activity.getMode());
-                return "ok";
-            } catch (Exception e) {
-//                log.error("创建订单失败, 回补库存: activityId={}, userId={}, mode={}",
-//                        activityId, userId, activity.getMode(), e);
+                outcome = strategy.createOrder(activity, userId, orderNo);
+            } catch (RuntimeException e) {
+                // 发送链路异常（如 Redis pending 写入失败导致的兜底）→ 回补 + 503
+                log.error("创建订单异常, 回补库存: activityId={}, userId={}", activityId, userId, e);
                 strategy.refundStock(activityId, userId);
                 throw new BizException(503, "系统繁忙，请稍后重试");
             }
+
+            if (outcome == SendOutcome.CONFIRMED || outcome == SendOutcome.ACCEPTED) {
+                return "ok";
+            }
+            // TRANSIENT / FATAL：单次失败不应用层重试，统一幂等回补 + 503（Fail Fast）
+            log.warn("创建订单发送失败, 回补库存: activityId={}, userId={}, outcome={}",
+                    activityId, userId, outcome);
+            strategy.refundStock(activityId, userId);
+            throw new BizException(503, "系统繁忙，请稍后重试");
         }
 
         return switch (result) {

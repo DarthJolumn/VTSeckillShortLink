@@ -2,6 +2,7 @@ package com.jolumn.vtslseckill.biz.service.strategy;
 
 import com.jolumn.vtslseckill.model.entity.SeckillActivity;
 import com.jolumn.vtslseckill.biz.repository.SeckillActivityRepository;
+import com.jolumn.vtslseckill.model.enums.SendOutcome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -34,11 +35,15 @@ public class DBQueueStrategy implements SeckillStrategy {
         return -2;
     }
 
+    /**
+     * 发 Kafka 消息（key=activityId 保序）。DB 已直扣成功，发送为受理语义（ACCEPTED）。
+     */
     @Override
-    public void createOrder(SeckillActivity activity, Long userId, String orderNo) {
+    public SendOutcome createOrder(SeckillActivity activity, Long userId, String orderNo) {
         String msg = userId + ":" + activity.getId() + ":" + orderNo;
         kafkaTemplate.send("seckill-order", activity.getId().toString(), msg);
         log.info("DBQueue 发送顺序 MQ 消息: key={}, msg={}", activity.getId(), msg);
+        return SendOutcome.ACCEPTED;
     }
 
     @Transactional

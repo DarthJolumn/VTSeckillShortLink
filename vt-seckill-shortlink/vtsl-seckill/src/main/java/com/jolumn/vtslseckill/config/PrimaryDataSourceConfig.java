@@ -25,7 +25,7 @@ import java.util.Properties;
  */
 @Configuration
 @EnableJpaRepositories(
-        basePackages = "com.jolumn.vtslseckill.repository",
+        basePackages = "com.jolumn.vtslseckill.biz.repository",
         entityManagerFactoryRef = "primaryEntityManagerFactory",
         transactionManagerRef = "primaryTransactionManager"
 )
@@ -53,7 +53,7 @@ public class PrimaryDataSourceConfig {
             @Qualifier("primaryDataSource") DataSource dataSource) {
         LocalContainerEntityManagerFactoryBean em = new LocalContainerEntityManagerFactoryBean();
         em.setDataSource(dataSource);
-        em.setPackagesToScan("com.jolumn.vtslseckill.entity");
+        em.setPackagesToScan("com.jolumn.vtslseckill.model.entity");
 
         HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         vendorAdapter.setShowSql(false);
