@@ -139,6 +139,16 @@ seckill:
   activity-cache:
     ttl-seconds: 5
     max-size: 1000
+  # ====== RedisSync 自动降级（同步等待 → 异步受理） ======
+  sync-degrade:
+    window-size: 100          # 滑动窗口样本数
+    max-avg-ms: 500           # 窗口平均耗时阈值(ms)，超过降级
+    max-timeout-rate: 0.05    # 窗口超时率阈值(5%)
+    sample-rate: 0.05         # 降级后 5% 请求走同步采样（快速恢复）
+    recover-threshold: 5      # 连续采样成功次数，达到恢复
+    min-recover-delay-ms: 10000  # 降级后最短恢复延迟（防抖）
+    degrade-ttl-ms: 60000     # 降级有效期：无流量时 TTL 到期自动尝试恢复（兜底）
+    ttl-check-ms: 5000        # TTL 检查间隔
   # ====== RedisAsync 可靠性（pending + 补偿 + 监控） ======
   async:
     # pending 标记 TTL（5min，覆盖补投周期与消费时间）

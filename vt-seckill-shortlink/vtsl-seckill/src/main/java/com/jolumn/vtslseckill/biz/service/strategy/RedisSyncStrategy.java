@@ -47,15 +47,15 @@ public class RedisSyncStrategy implements SeckillStrategy {
     public SendOutcome createOrder(SeckillActivity activity, Long userId, String orderNo) {
         String msg = userId + ":" + activity.getId() + ":" + orderNo;
         if (degrade.isSyncMode()) {
-            // 同步模式：发送 + 窗口上报（上报在策略层，sender 不碰窗口）
-            SendOutcome outcome = sender.sendSync(msg);
-            degrade.record(outcome);
-            return outcome;   // 失败由 placeOrder 统一回补
+            // 同步模式：发送（返回 outcome+耗时）+ 窗口上报真实耗时（成功也记，avg 才反映真实等待）
+            KafkaOrderSender.SendSyncResult r = sender.sendSync(msg);
+            degrade.record(r.outcome(), r.elapsedMs());
+            return r.outcome();   // 失败由 placeOrder 统一回补
         }
         // 降级模式（REDIS_ASYNC）：5% 探针仍走同步感知恢复，其余可靠异步受理
         if (degrade.shouldSample()) {
-            SendOutcome probe = sender.sendSync(msg);
-            if (probe == SendOutcome.CONFIRMED) {
+            KafkaOrderSender.SendSyncResult probe = sender.sendSync(msg);
+            if (probe.outcome() == SendOutcome.CONFIRMED) {
                 degrade.onSampleSuccess();
             } else {
                 degrade.onSampleFailure();

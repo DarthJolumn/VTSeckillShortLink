@@ -61,6 +61,15 @@ public class SlidingWindowStats {
         return filled == 0 ? 0.0 : (double) timeoutCount / filled;
     }
 
+    /** 窗口内最大耗时(ms)；窗口为空返回 0（诊断用） */
+    public synchronized long maxMs() {
+        long max = 0;
+        for (int i = 0; i < filled; i++) {
+            if (elapsedMs[i] > max) max = elapsedMs[i];
+        }
+        return max;
+    }
+
     /** 已填样本数 */
     public synchronized int size() {
         return filled;

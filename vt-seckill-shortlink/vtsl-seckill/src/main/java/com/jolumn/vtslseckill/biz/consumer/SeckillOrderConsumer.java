@@ -95,6 +95,11 @@ public class SeckillOrderConsumer {
             } catch (DuplicateKeyException e) {
                 log.warn("重复订单（幂等兜底）: orderNo={}", e.getMessage());
                 ack.acknowledge();
+            } catch (org.hibernate.exception.ConstraintViolationException e) {
+                // Hibernate 包装的唯一约束冲突（order_no / uk_activity_user）——降级重发/补投的重复消息走这里
+                log.warn("重复订单（Hibernate 约束幂等兜底）: msg={}, cause={}",
+                        record.value(), e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
+                ack.acknowledge();
             } catch (TransactionException e) {
                 String key = record.value();
                 AtomicInteger count = retryCounts.computeIfAbsent(key, k -> new AtomicInteger(0));

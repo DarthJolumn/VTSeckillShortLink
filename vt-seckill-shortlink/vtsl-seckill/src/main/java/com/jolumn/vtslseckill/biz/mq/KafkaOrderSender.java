@@ -55,24 +55,32 @@ public class KafkaOrderSender {
      *
      * @return CONFIRMED（broker ack）/ TRANSIENT（超时或中断）/ FATAL（发送异常）
      */
-    public SendOutcome sendSync(String msg) {
+    public SendSyncResult sendSync(String msg) {
+        long start = System.nanoTime();
         try {
             kafkaTemplate.send("seckill-order", msg)
                     .get(sendTimeoutSeconds, TimeUnit.SECONDS);
-            return SendOutcome.CONFIRMED;
+            return new SendSyncResult(SendOutcome.CONFIRMED, elapsedMs(start));
         } catch (TimeoutException e) {
             log.warn("Kafka 同步发送超时: msg={}", msg);
-            return SendOutcome.TRANSIENT;
+            return new SendSyncResult(SendOutcome.TRANSIENT, sendTimeoutSeconds * 1000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Kafka 同步发送中断: msg={}", msg);
-            return SendOutcome.TRANSIENT;
+            return new SendSyncResult(SendOutcome.TRANSIENT, sendTimeoutSeconds * 1000);
         } catch (ExecutionException e) {
             log.warn("Kafka 同步发送异常: msg={}, cause={}",
                     msg, e.getCause() == null ? e.getMessage() : e.getCause().getMessage());
-            return SendOutcome.FATAL;
+            return new SendSyncResult(SendOutcome.FATAL, sendTimeoutSeconds * 1000);
         }
     }
+
+    private long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    /** 同步发送结果：outcome + 实际耗时(ms)。耗时是降级判定的核心输入 */
+    public record SendSyncResult(SendOutcome outcome, long elapsedMs) {}
 
     /**
      * 异步可靠发送：fire-and-forget + pending 标记 + 回调 + 补偿队列。

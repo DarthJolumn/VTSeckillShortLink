@@ -57,9 +57,9 @@ public class StockService {
             throw new RuntimeException("Redis 连接失败，库存扣减中断");
         }
         int code = result.intValue();
-        if (code == 200) {
-            log.info("库存扣减成功: activityId={}, userId={}", activityId, userId);
-        }
+//        if (code == 200) {
+//            log.debug("库存扣减成功: activityId={}, userId={}", activityId, userId);
+//        }
         return code;
     }
 
@@ -68,6 +68,6 @@ public class StockService {
         String stockKey = "stock:{" + activityId + "}";
         String orderedKey = "ordered:{" + activityId + "}:" + userId;
         redisTemplate.execute(refundScript, List.of(stockKey, orderedKey));
-        log.info("库存回补: activityId={}, userId={}", activityId, userId);
+        log.debug("库存回补: activityId={}, userId={}", activityId, userId);
     }
 }
